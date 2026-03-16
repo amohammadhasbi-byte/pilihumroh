@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PilihUmroh.id - Platform Umroh Terpercaya</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+/* ═══════════════════════════════════════════════════════════
+   style.css - PilihUmroh.id
+   Semua CSS dipisah dari HTML & sudah diperbaiki
+═══════════════════════════════════════════════════════════ */
+
+/* ── VARIABLES ── */
+:root {
+--emerald: #1B4D3E;
+--emerald-mid: #2D6A56;
+--emerald-light: #3D8B6E;
+--gold: #C9A84C;
+--gold-light: #E8C96A;
+--gold-pale: #F5E9C4;
+--cream: #FDFAF4;
+--warm: #F7F1E3;
+--parchment: #EFE6D0;
+--text: #1A1A2E;
+--muted: #6B7280;
+--white: #FFFFFF;
+--card-shadow: 0 4px 32px rgba(27,77,62,0.10);
+--gold-shadow: 0 4px 20px rgba(201,168,76,0.35);
+--sidebar-w: 268px;
+--sidebar-collapsed: 70px;
+}
+
+/* ── RESET ── */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+font-family: 'Plus Jakarta Sans', sans-serif;
+background: var(--cream);
+color: var(--text);
+overflow-x: hidden;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(27,77,62,0.15); border-radius: 10px; }
+
+/* ══════════════════════════════════════════════════════════
+SIDEBAR
+══════════════════════════════════════════════════════════ */
+.sidebar {
+position: fixed; left: 0; top: 0;
+width: var(--sidebar-w); height: 100vh;
+background: var(--emerald);
+z-index: 100; display: flex; flex-direction: column;
+overflow: hidden;
+transition: width 0.32s cubic-bezier(0.4,0,0.2,1);
+}
+.sidebar::before {
+content: ''; position: absolute; inset: 0;
+background:
+radial-gradient(ellipse at 80% 20%, rgba(201,168,76,0.08) 0%, transparent 55%),
+radial-gradient(ellipse at 10% 90%, rgba(61,139,110,0.12) 0%, transparent 50%);
+pointer-events: none;
+}
+.sidebar::after {
+content: ''; position: absolute; top: -60px; right: -60px;
+width: 200px; height: 200px;
+border: 1px solid rgba(201,168,76,0.08); border-radius: 50%;
+pointer-events: none;
+}
+.sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+.sidebar-toggle {
+position: absolute; top: 30px; right: -13px;
+width: 26px; height: 26px; border-radius: 50%;
+background: var(--gold); border: none; cursor: pointer;
+display: flex; align-items: center; justify-content: center;
+z-index: 110; box-shadow: var(--gold-shadow);
+transition: transform 0.32s ease, background 0.2s;
+}
+.sidebar-toggle:hover { background: var(--gold-light); }
+.sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
+
+.toggle-arrow {
+width: 0; height: 0;
+border-top: 4px solid transparent;
+border-bottom: 4px solid transparent;
+border-right: 5px solid var(--emerald);
+margin-left: 2px;
+}
+
+.sidebar-logo {
+padding: 30px 22px 22px;
+border-bottom: 1px solid rgba(201,168,76,0.18);
+flex-shrink: 0; min-height: 92px;
+display: flex; flex-direction: column; justify-content: center;
+position: relative; z-index: 1; overflow: hidden; white-space: nowrap;
+}
+.sidebar.collapsed .sidebar-logo { align-items: center; padding: 30px 0 22px; }
+
+.logo-icon { font-size: 24px; margin-bottom: 4px; display: block; }
+.sidebar.collapsed .logo-icon { margin-bottom: 0; }
+
+.logo-text {
+font-family: 'Cormorant Garamond', serif;
+font-size: 22px; font-weight: 700; color: var(--white);
+letter-spacing: 0.2px; line-height: 1;
+transition: opacity 0.2s, max-width 0.3s;
+overflow: hidden; max-width: 200px;
+}
+.logo-text em { color: var(--gold); font-style: normal; }
+.sidebar.collapsed .logo-text { opacity: 0; max-width: 0; }
+
+.logo-domain {
+font-size: 9px; letter-spacing: 2.5px;
+color: rgba(201,168,76,0.65); text-transform: uppercase;
+margin-top: 3px; transition: opacity 0.2s;
+}
+.sidebar.collapsed .logo-domain { opacity: 0; }
+
+.sidebar-nav {
+flex: 1; padding: 20px 0;
+overflow-y: auto; overflow-x: hidden;
+position: relative; z-index: 1;
+}
+.sidebar-nav::-webkit-scrollbar { width: 0; }
+
+.nav-label {
+font-size: 8.5px; letter-spacing: 2.5px; text-transform: uppercase;
+color: rgba(201,168,76,0.4); padding: 12px 22px 6px;
+white-space: nowrap; transition: opacity 0.2s;
+}
+.sidebar.collapsed .nav-label { opacity: 0; padding: 6px 0; }
+
+.nav-item {
+display: flex; align-items: center; gap: 12px;
+padding: 12px 22px; color: rgba(255,255,255,0.5);
+cursor: pointer; transition: all 0.2s, padding 0.32s;
+font-size: 13.5px; font-weight: 500;
+position: relative; border: none; background: none;
+width: 100%; text-align: left; white-space: nowrap; overflow: hidden;
+}
+.nav-item:hover { color: rgba(255,255,255,0.85); background: rgba(201,168,76,0.08); }
+.nav-item.active { color: var(--white); background: rgba(201,168,76,0.13); }
+.nav-item.active::before {
+content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+width: 3px; background: var(--gold); border-radius: 0 3px 3px 0;
+}
+.sidebar.collapsed .nav-item { justify-content: center; padding: 13px 0; gap: 0; }
+
+.nav-icon { width: 19px; height: 19px; flex-shrink: 0; opacity: 0.75; transition: opacity 0.2s; }
+.nav-item.active .nav-icon,
+.nav-item:hover .nav-icon { opacity: 1; }
+
+.nav-txt { flex: 1; transition: opacity 0.15s, max-width 0.3s; max-width: 180px; }
+.sidebar.collapsed .nav-txt { opacity: 0; max-width: 0; overflow: hidden; }
+
+.nav-badge {
+background: var(--gold); color: var(--emerald);
+font-size: 9px; font-weight: 700; padding: 2px 7px;
+border-radius: 20px; margin-left: auto; flex-shrink: 0;
+}
+.sidebar.collapsed .nav-badge { display: none; }
+
+.sidebar-footer {
+padding: 18px; border-top: 1px solid rgba(201,168,76,0.12);
+flex-shrink: 0; position: relative; z-index: 1;
+overflow: hidden; white-space: nowrap;
+}
+.sidebar.collapsed .sidebar-footer { padding: 18px 0; display: flex; justify-content: center; }
+
+.user-wrap { display: flex; align-items: center; gap: 11px; }
+.sidebar.collapsed .user-wrap { gap: 0; }
+
+.user-av {
+width: 36px; height: 36px; border-radius: 50%;
+background: linear-gradient(135deg, var(--gold), var(--emerald-light));
+display: flex; align-items: center; justify-content: center;
+font-weight: 700; font-size: 13px; color: white;
+flex-shrink: 0; border: 2px solid rgba(201,168,76,0.3);
+}
+.user-name { font-size: 13px; color: white; font-weight: 600; transition: opacity 0.2s; }
+.user-role { font-size: 10px; color: rgba(201,168,76,0.7); transition: opacity 0.2s; }
+.sidebar.collapsed .user-name,
+.sidebar.collapsed .user-role { opacity: 0; }
+
+/* ══════════════════════════════════════════════════════════
+MAIN
+══════════════════════════════════════════════════════════ */
+.main {
+margin-left: var(--sidebar-w); min-height: 100vh;
+transition: margin-left 0.32s cubic-bezier(0.4,0,0.2,1);
+}
+.main.collapsed { margin-left: var(--sidebar-collapsed); }
+
+/* ── TOPBAR ── */
+.topbar {
+background: var(--white); padding: 0 36px; height: 66px;
+display: flex; align-items: center; justify-content: space-between;
+border-bottom: 1px solid rgba(27,77,62,0.08);
+position: sticky; top: 0; z-index: 50;
+}
+.topbar-title {
+font-family: 'Cormorant Garamond', serif;
+font-size: 22px; font-weight: 700; color: var(--emerald);
+}
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+
+.search-bar {
+display: flex; align-items: center; gap: 10px;
+background: var(--cream); border: 1.5px solid rgba(27,77,62,0.1);
+border-radius: 10px; padding: 8px 16px; width: 280px; transition: border-color 0.2s;
+position: relative;
+}
+.search-bar:focus-within { border-color: var(--emerald-light); }
+.search-bar input {
+border: none; background: none;
+font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13px; color: var(--text); width: 100%; outline: none;
+}
+.search-bar input::placeholder { color: var(--muted); }
+
+.notif-btn {
+width: 40px; height: 40px; border-radius: 10px;
+background: var(--cream); border: 1.5px solid rgba(27,77,62,0.1);
+display: flex; align-items: center; justify-content: center;
+cursor: pointer; position: relative; transition: background 0.2s;
+}
+.notif-btn:hover { background: var(--warm); }
+.notif-dot {
+position: absolute; top: 8px; right: 8px;
+width: 7px; height: 7px; background: #E74C3C;
+border-radius: 50%; border: 2px solid white;
+}
+
+/* ── SEARCH DROPDOWN ── */
+#search-dropdown {
+display: none; position: absolute;
+top: calc(100% + 8px); left: 0; right: 0;
+background: white; border-radius: 14px;
+box-shadow: 0 12px 40px rgba(27,77,62,0.18);
+border: 1px solid rgba(27,77,62,0.1);
+z-index: 999; max-height: 420px; overflow-y: auto;
+}
+.sd-item {
+display: flex; align-items: center; gap: 13px;
+padding: 12px 16px; cursor: pointer; transition: background 0.15s;
+border-bottom: 1px solid rgba(27,77,62,0.05);
+}
+.sd-item:last-child { border-bottom: none; }
+.sd-item:hover { background: var(--cream); }
+.sd-icon {
+width: 40px; height: 40px; border-radius: 10px;
+display: flex; align-items: center; justify-content: center;
+font-size: 20px; flex-shrink: 0; background: var(--warm);
+}
+.sd-name { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.sd-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.sd-price { font-size: 13px; font-weight: 700; color: var(--emerald); white-space: nowrap; margin-left: auto; }
+.sd-header {
+padding: 10px 16px 6px; font-size: 10px; font-weight: 700;
+color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase;
+background: var(--cream);
+}
+.sd-empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+
+/* ══════════════════════════════════════════════════════════
+PAGES
+══════════════════════════════════════════════════════════ */
+.page { display: none; padding: 36px; animation: fadeUp 0.3s ease; }
+.page.active { display: block; }
+
+@keyframes fadeUp {
+from { opacity: 0; transform: translateY(10px); }
+to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════════
+HERO
+══════════════════════════════════════════════════════════ */
+.hero {
+background: var(--emerald);
+margin: -36px -36px 36px;
+padding: 52px 52px 48px;
+position: relative; overflow: hidden;
+}
+.hero-pattern {
+position: absolute; inset: 0;
+background:
+radial-gradient(ellipse at 75% 40%, rgba(201,168,76,0.12) 0%, transparent 55%),
+radial-gradient(ellipse at 15% 80%, rgba(61,139,110,0.15) 0%, transparent 50%);
+pointer-events: none;
+}
+.hero-geo {
+position: absolute; right: 48px; top: 50%; transform: translateY(-50%);
+opacity: 0.06; font-size: 220px; line-height: 1;
+pointer-events: none; user-select: none;
+}
+.hero-eyebrow {
+font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+color: var(--gold); font-weight: 600; margin-bottom: 14px;
+display: flex; align-items: center; gap: 10px;
+}
+.hero-eyebrow::before, .hero-eyebrow::after {
+content: ''; flex: 0 0 24px; height: 1px; background: var(--gold); opacity: 0.5;
+}
+.hero-title {
+font-family: 'Cormorant Garamond', serif;
+font-size: 50px; font-weight: 700; color: var(--white);
+line-height: 1.1; margin-bottom: 14px;
+}
+.hero-title span { color: var(--gold); }
+.hero-sub {
+font-size: 15px; color: rgba(255,255,255,0.55);
+max-width: 480px; line-height: 1.65; margin-bottom: 36px;
+}
+.hero-stats { display: flex; gap: 36px; margin-top: 32px; align-items: center; }
+.hs-value {
+font-family: 'Cormorant Garamond', serif;
+font-size: 30px; font-weight: 700; color: white; line-height: 1;
+}
+.hs-label { font-size: 11px; color: rgba(255,255,255,0.38); margin-top: 3px; letter-spacing: 0.3px; }
+.hs-sep { width: 1px; height: 36px; background: rgba(201,168,76,0.2); }
+
+/* ── SEARCH WIDGET ── */
+.search-widget {
+background: white; border-radius: 16px; padding: 20px 24px;
+display: flex; gap: 16px; align-items: flex-end; max-width: 780px;
+box-shadow: 0 24px 64px rgba(0,0,0,0.28);
+border: 1px solid rgba(201,168,76,0.15);
+}
+.sw-field { flex: 1; }
+.sw-label {
+font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+color: var(--muted); font-weight: 600; margin-bottom: 7px;
+}
+.sw-input {
+border: none; border-bottom: 1.5px solid rgba(0,0,0,0.1);
+padding: 6px 0; font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 14px; font-weight: 600; color: var(--text);
+width: 100%; outline: none; background: none; transition: border-color 0.2s;
+}
+.sw-input:focus { border-color: var(--emerald); }
+.sw-btn {
+background: linear-gradient(135deg, var(--gold), #A8832A);
+color: white; border: none; padding: 13px 28px; border-radius: 10px;
+font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13px; font-weight: 700; cursor: pointer;
+white-space: nowrap; transition: all 0.2s;
+box-shadow: var(--gold-shadow); letter-spacing: 0.3px;
+}
+.sw-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(201,168,76,0.45); }
+
+/* ══════════════════════════════════════════════════════════
+STAT CARDS
+══════════════════════════════════════════════════════════ */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
+.stat-card {
+background: var(--white); border-radius: 16px; padding: 22px;
+box-shadow: var(--card-shadow); position: relative; overflow: hidden;
+border: 1px solid rgba(27,77,62,0.05); transition: transform 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card::after {
+content: ''; position: absolute; bottom: -16px; right: -16px;
+width: 72px; height: 72px; border-radius: 50%; opacity: 0.07;
+}
+.stat-card:nth-child(1)::after { background: var(--gold); }
+.stat-card:nth-child(2)::after { background: var(--emerald); }
+.stat-card:nth-child(3)::after { background: #C0392B; }
+.stat-card:nth-child(4)::after { background: #2980B9; }
+.stat-icon {
+width: 42px; height: 42px; border-radius: 12px;
+display: flex; align-items: center; justify-content: center;
+margin-bottom: 14px; font-size: 18px;
+}
+.stat-card:nth-child(1) .stat-icon { background: rgba(201,168,76,0.1); }
+.stat-card:nth-child(2) .stat-icon { background: rgba(27,77,62,0.08); }
+.stat-card:nth-child(3) .stat-icon { background: rgba(192,57,43,0.08); }
+.stat-card:nth-child(4) .stat-icon { background: rgba(41,128,185,0.08); }
+.stat-value {
+font-family: 'Cormorant Garamond', serif;
+font-size: 28px; font-weight: 700; color: var(--text);
+line-height: 1; margin-bottom: 5px;
+}
+.stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+.stat-change { font-size: 11px; margin-top: 8px; font-weight: 600; }
+.stat-change.up { color: var(--emerald-light); }
+.stat-change.dn { color: #C0392B; }
+
+/* ══════════════════════════════════════════════════════════
+PACKAGES PAGE
+══════════════════════════════════════════════════════════ */
+.pg-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+.pg-title { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 700; color: var(--emerald); }
+.pg-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+.city-tabs { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.city-tab {
+padding: 7px 20px; border-radius: 30px;
+border: 1.5px solid rgba(27,77,62,0.15); background: white;
+font-size: 13px; font-weight: 600; cursor: pointer;
+transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif;
+display: flex; align-items: center; gap: 6px;
+}
+.city-tab:hover { border-color: var(--gold); }
+.city-tab.active { background: var(--gold); border-color: var(--gold); color: white; }
+
+.filter-row { display: flex; gap: 10px; margin-bottom: 26px; flex-wrap: wrap; align-items: center; }
+.filter-chip {
+padding: 7px 18px; border-radius: 30px;
+border: 1.5px solid rgba(27,77,62,0.12); background: var(--white);
+font-size: 13px; font-weight: 500; color: var(--muted);
+cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.filter-chip:hover { border-color: var(--emerald); color: var(--emerald); }
+.filter-chip.active { background: var(--emerald); border-color: var(--emerald); color: white; }
+
+.filter-select {
+padding: 7px 16px; border-radius: 30px;
+border: 1.5px solid rgba(27,77,62,0.12); background: var(--white);
+font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13px; color: var(--text); cursor: pointer; outline: none; margin-left: auto;
+}
+
+.pkgs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+
+.pkg-card {
+background: var(--white); border-radius: 20px; overflow: hidden;
+box-shadow: var(--card-shadow); border: 1px solid rgba(27,77,62,0.06);
+transition: all 0.3s ease; cursor: pointer;
+}
+.pkg-card:hover { transform: translateY(-5px); box-shadow: 0 20px 48px rgba(27,77,62,0.14); }
+
+.pkg-img {
+height: 192px; position: relative;
+display: flex; align-items: center; justify-content: center;
+font-size: 62px; overflow: hidden;
+}
+.pkg-badge {
+position: absolute; top: 14px; left: 14px;
+background: rgba(27,77,62,0.82); backdrop-filter: blur(8px);
+color: var(--gold-pale); font-size: 9px; padding: 4px 12px;
+border-radius: 20px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+}
+.pkg-fav {
+position: absolute; top: 14px; right: 14px;
+width: 32px; height: 32px; background: white; border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+cursor: pointer; transition: all 0.2s;
+box-shadow: 0 2px 8px rgba(0,0,0,0.12); font-size: 15px;
+}
+.pkg-fav:hover { transform: scale(1.15); }
+.pkg-body { padding: 18px 20px 20px; }
+.pkg-airline {
+font-size: 10px; color: var(--emerald); font-weight: 700;
+letter-spacing: 1.2px; text-transform: uppercase;
+display: flex; align-items: center; gap: 4px; margin-bottom: 7px;
+}
+.pkg-name {
+font-family: 'Cormorant Garamond', serif;
+font-size: 19px; font-weight: 700; color: var(--text);
+margin-bottom: 8px; line-height: 1.3;
+}
+.pkg-meta { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.pkg-meta-item { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); }
+.pkg-footer {
+display: flex; align-items: center; justify-content: space-between;
+padding-top: 13px; border-top: 1px solid rgba(27,77,62,0.07);
+}
+.pkg-price-lbl { font-size: 10px; color: var(--muted); }
+.pkg-price {
+font-size: 20px; font-weight: 700; color: var(--emerald);
+font-family: 'Cormorant Garamond', serif;
+}
+.pkg-price span {
+font-size: 11px; color: var(--muted);
+font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 400;
+}
+.pkg-rating { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: var(--text); }
+.city-tag { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; }
+
+/* ── Package image backgrounds ── */
+.pi-1 { background: linear-gradient(135deg, rgba(27,77,62,0.13), rgba(201,168,76,0.13)); }
+.pi-2 { background: linear-gradient(135deg, rgba(27,77,62,0.13), rgba(45,106,86,0.13)); }
+.pi-3 { background: linear-gradient(135deg, rgba(201,168,76,0.13), rgba(232,201,106,0.13)); }
+.pi-4 { background: linear-gradient(135deg, rgba(45,106,86,0.13), rgba(61,139,110,0.13)); }
+.pi-5 { background: linear-gradient(135deg, #0A2540, #1B4D3E); }
+.pi-6 { background: linear-gradient(135deg, rgba(201,168,76,0.13), rgba(27,77,62,0.13)); }
+
+/* ── Search result banner ── */
+.search-result-banner {
+grid-column: 1/-1;
+background: linear-gradient(135deg, var(--emerald), var(--emerald-mid));
+border-radius: 14px; padding: 18px 22px; margin-bottom: 0;
+display: flex; align-items: center; justify-content: space-between;
+}
+.srb-clear {
+background: rgba(255,255,255,0.15); color: white; border: none;
+padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 600;
+cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.srb-clear:hover { background: rgba(255,255,255,0.25); }
+
+/* ══════════════════════════════════════════════════════════
+BUTTONS
+══════════════════════════════════════════════════════════ */
+.btn-primary {
+background: linear-gradient(135deg, var(--emerald), var(--emerald-mid));
+color: white; border: none; padding: 11px 22px; border-radius: 11px;
+font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+display: flex; align-items: center; gap: 8px;
+box-shadow: 0 4px 16px rgba(27,77,62,0.25);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(27,77,62,0.35); }
+
+.btn-secondary {
+flex: 1; padding: 12px; border-radius: 11px;
+border: 1.5px solid rgba(27,77,62,0.12); background: none;
+font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13.5px; font-weight: 600; cursor: pointer; color: var(--text); transition: all 0.2s;
+}
+.btn-secondary:hover { background: var(--cream); }
+
+.btn-primary-full {
+flex: 2; padding: 12px; border-radius: 11px; border: none;
+background: linear-gradient(135deg, var(--emerald), var(--emerald-mid));
+color: white; font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+}
+.btn-primary-full:hover { opacity: 0.92; transform: translateY(-1px); }
+
+/* ══════════════════════════════════════════════════════════
+FORM ELEMENTS
+══════════════════════════════════════════════════════════ */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.form-label {
+font-size: 11px; font-weight: 700; color: var(--muted);
+letter-spacing: 0.5px; text-transform: uppercase;
+}
+.form-input, .form-select, .form-textarea {
+padding: 10px 13px; border: 1.5px solid rgba(27,77,62,0.1);
+border-radius: 10px; font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13.5px; color: var(--text); outline: none;
+transition: border-color 0.2s; background: var(--cream);
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+border-color: var(--emerald); background: white;
+}
+.form-textarea { resize: vertical; min-height: 75px; }
+.form-actions { display: flex; gap: 11px; margin-top: 22px; }
+.pf-label {
+font-size: 10px; font-weight: 800; letter-spacing: 1px;
+color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 5px;
+}
+
+/* ══════════════════════════════════════════════════════════
+MODAL
+══════════════════════════════════════════════════════════ */
+.modal-overlay {
+position: fixed; inset: 0; background: rgba(10,22,40,0.55);
+backdrop-filter: blur(5px); z-index: 200;
+display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+
+.modal {
+background: white; border-radius: 22px; width: 580px;
+max-width: 92vw; max-height: 88vh; overflow-y: auto;
+box-shadow: 0 40px 80px rgba(0,0,0,0.28); animation: modalIn 0.28s ease;
+}
+@keyframes modalIn {
+from { opacity: 0; transform: scale(0.96) translateY(12px); }
+to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-header { padding: 26px 30px 0; display: flex; align-items: flex-start; justify-content: space-between; }
+.modal-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; color: var(--emerald); }
+.modal-close {
+width: 34px; height: 34px; border-radius: 50%; border: none;
+background: var(--cream); cursor: pointer; font-size: 16px;
+display: flex; align-items: center; justify-content: center; color: var(--muted);
+}
+.modal-body { padding: 22px 30px 30px; }
+
+/* ── Detail Package Modal ── */
+.detail-modal-overlay {
+position: fixed; inset: 0; background: rgba(10,22,40,0.6);
+backdrop-filter: blur(5px); z-index: 300;
+display: none; align-items: center; justify-content: center;
+}
+.detail-modal-overlay.open { display: flex; }
+.detail-modal {
+background: white; border-radius: 24px; width: 680px;
+max-width: 95vw; max-height: 90vh; overflow-y: auto;
+box-shadow: 0 40px 80px rgba(0,0,0,0.3); animation: modalIn 0.28s ease;
+}
+.dm-section-title {
+font-size: 12px; font-weight: 700; color: var(--emerald);
+letter-spacing: 1.5px; text-transform: uppercase;
+margin-bottom: 10px; padding-bottom: 6px;
+border-bottom: 1.5px solid var(--parchment);
+}
+.dm-include-item {
+display: flex; align-items: flex-start; gap: 7px;
+font-size: 13px; color: #374151; padding: 4px 0;
+}
+.dm-include-item .chk {
+width: 18px; height: 18px; background: rgba(27,77,62,0.1);
+border-radius: 5px; display: flex; align-items: center; justify-content: center;
+font-size: 10px; color: var(--emerald); flex-shrink: 0; font-weight: 700;
+}
+.dm-exclude-item { display: flex; align-items: flex-start; gap: 7px; font-size: 13px; color: #9CA3AF; padding: 3px 0; }
+.dm-exclude-item .xchk { color: #EF4444; font-weight: 700; }
+
+/* ── Booking Detail Modal ── */
+#booking-detail-overlay {
+position: fixed; inset: 0; background: rgba(10,22,40,0.55);
+backdrop-filter: blur(5px); z-index: 300;
+align-items: center; justify-content: center;
+}
+
+/* ══════════════════════════════════════════════════════════
+SETTINGS / FLOATING PANEL
+══════════════════════════════════════════════════════════ */
+.settings-grid { display: grid; grid-template-columns: 260px 1fr; gap: 22px; }
+
+.fs-item {
+width: 100%; padding: 12px 8px; border: none; background: none;
+text-align: left; font-family: 'Plus Jakarta Sans', sans-serif;
+cursor: pointer; display: flex; align-items: center; gap: 12px;
+border-radius: 12px; transition: background 0.15s; margin-bottom: 2px;
+}
+.fs-item:hover, .fs-item:active { background: rgba(27,77,62,0.05); }
+.fs-item-icon {
+width: 40px; height: 40px; border-radius: 11px;
+display: flex; align-items: center; justify-content: center;
+font-size: 20px; flex-shrink: 0;
+}
+.fs-item-text { flex: 1; min-width: 0; }
+.fs-item-label { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.fs-item-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.fs-item-arrow { color: var(--muted); font-size: 16px; opacity: 0.4; margin-left: auto; flex-shrink: 0; }
+
+/* ── Badge ── */
+.badge { padding: 4px 11px; border-radius: 20px; font-size: 10.5px; font-weight: 700; display: inline-block; }
+.badge-confirmed  { background: rgba(27,77,62,0.1);    color: var(--emerald); }
+.badge-pending    { background: rgba(201,168,76,0.15);  color: #8A6C1A; }
+.badge-cancelled  { background: rgba(192,57,43,0.1);   color: #C0392B; }
+.badge-completed  { background: rgba(41,128,185,0.1);  color: #2474A8; }
+
+/* ══════════════════════════════════════════════════════════
+MOBILE TOP NAVBAR
+══════════════════════════════════════════════════════════ */
+.mobile-topbar {
+display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px;
+background: #1B4D3E; z-index: 2000;
+align-items: center; justify-content: space-between; padding: 0 16px;
+box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+}
+.mobile-logo { display: flex; align-items: center; gap: 8px; }
+.mobile-logo-icon { font-size: 22px; }
+.mobile-logo-text {
+font-family: 'Cormorant Garamond', serif;
+font-size: 20px; font-weight: 700; color: white;
+}
+.mobile-logo-text em { color: var(--gold); font-style: normal; }
+.mobile-search-btn {
+width: 38px; height: 38px; border-radius: 10px;
+background: rgba(255,255,255,0.12); border: none;
+display: flex; align-items: center; justify-content: center;
+cursor: pointer; color: white;
+}
+
+/* ── MOBILE SEARCH OVERLAY ── */
+.mobile-search-overlay {
+display: none; position: fixed; inset: 0;
+background: rgba(10,22,40,0.7); backdrop-filter: blur(6px);
+z-index: 300; padding: 20px 16px; flex-direction: column; gap: 12px;
+}
+.mobile-search-overlay.open { display: flex; }
+.mobile-search-box { background: white; border-radius: 16px; padding: 16px; margin-top: 50px; }
+.mobile-search-box input {
+width: 100%; border: 1.5px solid rgba(27,77,62,0.15);
+border-radius: 10px; padding: 12px 14px;
+font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 15px; color: var(--text); outline: none; margin-bottom: 10px;
+}
+.mobile-search-box input:focus { border-color: var(--emerald); }
+.mobile-search-close {
+background: var(--cream); border: none; border-radius: 10px;
+padding: 12px; width: 100%; font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.mobile-search-results {
+background: white; border-radius: 16px;
+overflow: hidden; max-height: 55vh; overflow-y: auto;
+}
+
+/* ══════════════════════════════════════════════════════════
+BOTTOM NAVIGATION
+══════════════════════════════════════════════════════════ */
+.bottom-nav {
+display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 68px;
+background: #1B4D3E; z-index: 99999;
+align-items: center; justify-content: space-around; padding: 0 8px;
+box-shadow: 0 -4px 24px rgba(0,0,0,0.25);
+border-top: 2px solid rgba(201,168,76,0.2);
+}
+.bn-item {
+display: flex; flex-direction: column; align-items: center; gap: 4px;
+flex: 1; padding: 8px 4px; cursor: pointer; border: none; background: none;
+color: rgba(255,255,255,0.45); transition: color 0.2s; position: relative;
+font-family: 'Plus Jakarta Sans', sans-serif;
+--webkit-tap-highlight-color: rgba(201,168,76,0.2);
+}
+.bn-item.active { color: var(--gold); }
+.bn-item.active::before {
+content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+height: 2px; background: var(--gold); border-radius: 0 0 4px 4px;
+}
+.bn-icon { width: 22px; height: 22px; transition: transform 0.2s; }
+.bn-item.active .bn-icon { transform: scale(1.15); }
+.bn-label { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; }
+.bn-badge {
+position: absolute; top: 4px; right: calc(50% - 18px);
+background: var(--gold); color: var(--emerald);
+font-size: 8px; font-weight: 800; padding: 1px 5px;
+border-radius: 10px; min-width: 14px; text-align: center;
+}
+
+/* ══════════════════════════════════════════════════════════
+HAMBURGER DRAWER
+══════════════════════════════════════════════════════════ */
+.hb-backdrop {
+display: none; position: fixed; inset: 0;
+background: rgba(10,22,40,0.55); backdrop-filter: blur(3px);
+z-index: 9000; opacity: 0; transition: opacity 0.28s ease;
+}
+.hb-backdrop.open { display: block; opacity: 1; }
+
+.hb-drawer {
+position: fixed; top: 0; right: -320px; width: 300px;
+max-width: 85vw; height: 100%; background: white;
+z-index: 9001; box-shadow: -8px 0 40px rgba(0,0,0,0.18);
+transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+display: flex; flex-direction: column; overflow-y: auto;
+}
+.hb-drawer.open { right: 0; }
+
+.hb-drawer-header {
+background: linear-gradient(135deg, #1B4D3E, #2D6A56);
+padding: 20px 18px 18px; flex-shrink: 0;
+}
+.hb-close-btn {
+position: absolute; top: 14px; right: 14px;
+width: 34px; height: 34px; border-radius: 50%; border: none;
+background: rgba(255,255,255,0.15); color: white;
+font-size: 18px; cursor: pointer;
+display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.hb-close-btn:hover { background: rgba(255,255,255,0.25); transform: rotate(90deg); }
+
+.hb-user-block { display: flex; align-items: center; gap: 12px; padding-top: 8px; }
+.hb-avatar {
+width: 46px; height: 46px; border-radius: 50%;
+background: linear-gradient(135deg, var(--gold), #E8C96A);
+display: flex; align-items: center; justify-content: center;
+font-size: 18px; font-weight: 800; color: var(--emerald);
+border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0;
+}
+.hb-nav-section {
+padding: 10px 12px 4px; font-size: 10px; font-weight: 800;
+color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase;
+}
+.hb-nav-item {
+display: flex; align-items: center; gap: 14px; padding: 13px 18px;
+cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; font-weight: 600;
+color: var(--text); transition: background 0.15s;
+}
+.hb-nav-item:hover { background: rgba(27,77,62,0.05); }
+.hb-nav-item .hb-icon {
+width: 36px; height: 36px; border-radius: 10px;
+display: flex; align-items: center; justify-content: center;
+font-size: 18px; flex-shrink: 0;
+}
+.hb-nav-item .hb-arrow { margin-left: auto; color: var(--muted); font-size: 12px; opacity: 0.5; }
+.hb-divider { height: 1px; background: rgba(27,77,62,0.07); margin: 6px 18px; }
+.hb-partner-btn {
+margin: 8px 14px; padding: 13px 16px; border-radius: 14px;
+background: linear-gradient(135deg, var(--emerald), #2D6A56);
+color: white; border: none; font-family: 'Plus Jakarta Sans', sans-serif;
+font-size: 13px; font-weight: 700; cursor: pointer;
+display: flex; align-items: center; gap: 10px;
+width: calc(100% - 28px); transition: opacity 0.2s;
+}
+.hb-partner-btn:hover { opacity: 0.9; }
+
+/* ── Hamburger icon animation ── */
+.hb-trigger-lines { display: flex; flex-direction: column; gap: 5px; width: 20px; }
+.hb-trigger-lines span {
+display: block; height: 2px; border-radius: 2px; background: white;
+transition: all 0.3s ease; transform-origin: center;
+}
+.hb-trigger-lines.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hb-trigger-lines.is-open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.hb-trigger-lines.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ══════════════════════════════════════════════════════════
+ANIMATIONS
+══════════════════════════════════════════════════════════ */
+@keyframes shake {
+0%,100% { transform: translate(-50%,-50%) scale(1); }
+20%      { transform: translate(calc(-50% + 8px),-50%) scale(1); }
+40%      { transform: translate(calc(-50% - 8px),-50%) scale(1); }
+60%      { transform: translate(calc(-50% + 5px),-50%) scale(1); }
+80%      { transform: translate(calc(-50% - 5px),-50%) scale(1); }
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+/* ══════════════════════════════════════════════════════════
+RESPONSIVE - MOBILE
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+.sidebar { display: none !important; }
+.mobile-topbar { display: flex; }
+.bottom-nav { display: flex !important; }
+
+.main { margin-left: 0 !important; padding-top: 60px; padding-bottom: 90px; }
+.topbar { display: none; }
+.page { padding: 16px; }
+
+.hero { margin: -16px -16px 20px; padding: 28px 20px 24px; }
+.hero-geo { display: none; }
+.hero-title { font-size: 30px; }
+.hero-sub { font-size: 13px; }
+
+.search-widget { flex-direction: column; gap: 12px; padding: 16px; max-width: 100%; }
+.sw-btn { width: 100%; padding: 14px; font-size: 14px; }
+.hero-stats { gap: 16px; flex-wrap: wrap; }
+.hs-value { font-size: 22px; }
+
+.stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.stat-card { padding: 16px; }
+.stat-value { font-size: 22px; }
+
+.pkgs-grid { grid-template-columns: 1fr; gap: 14px; }
+.pg-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+.filter-row { gap: 8px; }
+.filter-chip { padding: 6px 14px; font-size: 12px; }
+.city-tabs { gap: 8px; }
+.city-tab { padding: 6px 14px; font-size: 12px; }
+
+.settings-grid { grid-template-columns: 1fr; }
+
+.detail-modal {
+width: 100%; max-width: 100%;
+border-radius: 20px 20px 0 0;
+max-height: 92vh; position: fixed; bottom: 0;
+}
+.detail-modal-overlay { align-items: flex-end; }
+}
+
+@media (max-width: 480px) {
+.stats-grid { grid-template-columns: repeat(2, 1fr); }
+.hero-title { font-size: 26px; }
+.hero-eyebrow { font-size: 9px; }
+.pg-title { font-size: 24px; }
+}
+
+  </style>
+</head>
+
+<!-- ══════════════════════════════════════════════
+     MOBILE TOP NAVBAR
+══════════════════════════════════════════════ -->
+
+<header class="mobile-topbar">
+  <div class="mobile-logo" id="logo-tap-zone" onclick="handleLogoTap()" style="cursor:pointer;user-select:none">
+    <span class="mobile-logo-icon"></span>
+    <div class="mobile-logo-text">Pilih<em>Umroh</em>
+      <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:9px;color:rgba(201,168,76,0.6);letter-spacing:1.5px;margin-left:2px">.id</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="mobile-search-btn" onclick="openMobileSearch()">
+      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8" stroke-width="2"/>
+        <path d="M21 21l-4.35-4.35" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button id="acct-toggle-btn" onclick="toggleAccountPopup()" aria-label="Akun saya"
+      style="width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,0.25);background:linear-gradient(135deg,var(--gold),#E8C96A);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--emerald);font-size:14px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;flex-shrink:0;transition:all 0.2s;position:relative">
+      <span id="acct-btn-inisial">?</span>
+      <span id="acct-online-dot" style="display:none;position:absolute;bottom:0;right:0;width:10px;height:10px;background:#2ECC71;border-radius:50%;border:2px solid var(--emerald)"></span>
+    </button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════
+     MOBILE SEARCH OVERLAY
+══════════════════════════════════════════════ -->
+
+<div class="mobile-search-overlay" id="mobile-search-overlay" onclick="closeMobileSearch(event)">
+  <div class="mobile-search-box" onclick="event.stopPropagation()">
+    <input id="mobile-search-input" type="text" placeholder="Cari paket, kota, maskapai..."
+      oninput="mobileLiveSearch(this.value)" autocomplete="off">
+    <div id="mobile-search-results" class="mobile-search-results" style="display:none"></div>
+  </div>
+  <button class="mobile-search-close" onclick="closeMobileSearch()">✕ Tutup Pencarian</button>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     ADMIN PORTAL (Hidden - Ctrl+Shift+A / 5x tap logo)
+══════════════════════════════════════════════ -->
+
+<div id="admin-portal-backdrop" onclick="closeAdminPortal()"
+  style="display:none;position:fixed;inset:0;background:rgba(5,15,30,0.85);backdrop-filter:blur(8px);z-index:9800"></div>
+
+<div id="admin-portal"
+  style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.92);width:min(340px,calc(100vw - 32px));background:#0D1F2D;border-radius:20px;z-index:9801;opacity:0;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);border:1px solid rgba(201,168,76,0.15);box-shadow:0 24px 80px rgba(0,0,0,0.6)">
+  <div style="padding:28px 24px 20px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.06)">
+    <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--gold),#E8C96A);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px"></div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:white;margin-bottom:4px">Super Admin Portal</div>
+    <div style="font-size:11.5px;color:rgba(255,255,255,0.35);letter-spacing:0.5px">Akses terbatas - PilihUmroh.id</div>
+  </div>
+  <div style="padding:22px 24px 28px;display:flex;flex-direction:column;gap:14px">
+    <div>
+      <label style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,0.4);display:block;margin-bottom:6px">ADMIN ID</label>
+      <input id="ap_email" type="text" placeholder="admin@pilihumroh.id" autocomplete="off"
+        style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;font-size:13.5px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='rgba(201,168,76,0.5)'"
+        onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+        onkeydown="if(event.key==='Enter')doAdminLogin()">
+    </div>
+    <div style="position:relative">
+      <label style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,0.4);display:block;margin-bottom:6px">PASSPHRASE</label>
+      <input id="ap_pass" type="password" placeholder="----------" autocomplete="new-password"
+        style="width:100%;padding:12px 44px 12px 14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;font-size:13.5px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='rgba(201,168,76,0.5)'"
+        onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+        onkeydown="if(event.key==='Enter')doAdminLogin()">
+      <button onclick="togglePass('ap_pass')"
+        style="position:absolute;right:12px;bottom:11px;background:none;border:none;cursor:pointer;font-size:15px;color:rgba(255,255,255,0.3)"></button>
+    </div>
+    <div id="ap-error" style="display:none;font-size:12px;color:#FF6B6B;text-align:center;padding:8px 12px;background:rgba(231,76,60,0.1);border-radius:8px;border:1px solid rgba(231,76,60,0.2)"></div>
+    <button onclick="doAdminLogin()"
+      style="width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,var(--gold),#E8C96A);color:#0D1F2D;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:0.5px">
+       Masuk ke Dashboard
+    </button>
+    <div style="text-align:center">
+      <button onclick="closeAdminPortal()"
+        style="background:none;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:rgba(255,255,255,0.25);cursor:pointer">Batal</button>
+    </div>
+  </div>
+  <div id="ap-tap-dots" style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);display:flex;gap:5px"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     ACCOUNT POPUP
+══════════════════════════════════════════════ -->
+
+<div id="acct-backdrop" onclick="closeAccountPopup()"
+  style="display:none;position:fixed;inset:0;z-index:8998;background:rgba(0,0,0,0.15)"></div>
+
+<div id="acct-popup"
+  style="display:none;position:fixed;top:68px;right:12px;width:min(290px,calc(100vw - 24px));background:white;border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,0.18);z-index:8999;overflow-y:auto;max-height:calc(100vh - 88px);transform:translateY(-8px) scale(0.96);opacity:0;transition:all 0.22s cubic-bezier(0.4,0,0.2,1)">
+
+  <!-- Belum Login -->
+
+  <div id="acct-popup-guest" style="padding:20px">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="width:52px;height:52px;border-radius:50%;background:rgba(27,77,62,0.06);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:24px"></div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">Halo, Selamat Datang!</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5">Masuk untuk melihat pesanan dan dokumen Anda</div>
+    </div>
+    <button onclick="acctGoLogin()" style="width:100%;padding:12px;border-radius:12px;background:var(--emerald);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer;margin-bottom:8px"> Masuk Sekarang</button>
+    <button onclick="acctGoRegister()" style="width:100%;padding:11px;border-radius:12px;background:none;border:1.5px solid rgba(27,77,62,0.12);color:var(--emerald);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">✏ Buat Akun Baru</button>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(27,77,62,0.06);text-align:center">
+      <button onclick="acctGoPartner()" style="background:none;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer"> Daftarkan Travel Anda →</button>
+    </div>
+  </div>
+
+  <!-- Sudah Login -->
+
+  <div id="acct-popup-loggedin" style="display:none">
+    <div style="background:linear-gradient(135deg,var(--emerald),#2D6A56);padding:18px;display:flex;align-items:center;gap:12px">
+      <div id="acct-popup-avatar" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#E8C96A);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--emerald);flex-shrink:0;border:2px solid rgba(255,255,255,0.2)">?</div>
+      <div style="flex:1;min-width:0">
+        <div id="acct-popup-nama" style="font-size:14px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nama</div>
+        <div id="acct-popup-role" style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:2px">Jamaah</div>
+      </div>
+      <button onclick="closeAccountPopup()" style="background:rgba(255,255,255,0.12);border:none;border-radius:8px;width:28px;height:28px;color:white;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+    </div>
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(27,77,62,0.06)">
+      <div style="background:white;padding:12px 14px;text-align:center">
+        <div id="acct-stat-pesanan" style="font-size:18px;font-weight:800;color:var(--emerald)">0</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">Pesanan</div>
+      </div>
+      <div style="background:white;padding:12px 14px;text-align:center">
+        <div id="acct-stat-dokumen" style="font-size:18px;font-weight:800;color:var(--gold)">0</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">Dokumen</div>
+      </div>
+    </div>
+    <!-- Menu -->
+    <div style="padding:8px 0">
+      <button onclick="acctGo('bookings','bn-bookings')" style="width:100%;padding:11px 16px;border:none;background:none;text-align:left;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px" onmouseenter="this.style.background='rgba(27,77,62,0.04)'" onmouseleave="this.style.background='none'">
+        <span style="font-size:18px"></span><span style="flex:1">Pesanan Saya</span><span style="color:var(--muted);font-size:12px">›</span>
+      </button>
+      <button onclick="acctGoSettings('dokumen')" style="width:100%;padding:11px 16px;border:none;background:none;text-align:left;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px" onmouseenter="this.style.background='rgba(27,77,62,0.04)'" onmouseleave="this.style.background='none'">
+        <span style="font-size:18px"></span><span style="flex:1">Document Vault</span><span style="color:var(--muted);font-size:12px">›</span>
+      </button>
+      <button onclick="acctGoSettings('profil')" style="width:100%;padding:11px 16px;border:none;background:none;text-align:left;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px" onmouseenter="this.style.background='rgba(27,77,62,0.04)'" onmouseleave="this.style.background='none'">
+        <span style="font-size:18px">✏</span><span style="flex:1">Edit Profil</span><span style="color:var(--muted);font-size:12px">›</span>
+      </button>
+      <div style="height:1px;background:rgba(27,77,62,0.07);margin:4px 14px"></div>
+      <button onclick="doLogout();closeAccountPopup()" style="width:100%;padding:11px 16px;border:none;background:none;text-align:left;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;display:flex;align-items:center;gap:12px" onmouseenter="this.style.background='rgba(231,76,60,0.04)'" onmouseleave="this.style.background='none'">
+        <span style="font-size:18px"></span><span>Keluar dari Akun</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     BOTTOM NAVIGATION
+══════════════════════════════════════════════ -->
+
+<nav class="bottom-nav">
+  <button class="bn-item active" id="bn-dashboard" onclick="showPage('dashboard',this,'bn-dashboard')">
+    <svg class="bn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke-width="2"/><polyline points="9 22 9 12 15 12 15 22" stroke-width="2"/></svg>
+    <span class="bn-label">Beranda</span>
+  </button>
+  <button class="bn-item" id="bn-packages" onclick="showPage('packages',this,'bn-packages')">
+    <svg class="bn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" stroke-width="2"/><path d="M16 3v4M8 3v4M3 11h18" stroke-width="2"/></svg>
+    <span class="bn-label">Paket</span>
+    <span class="bn-badge" id="nav-badge-packages" style="display:none">0</span>
+  </button>
+  <button class="bn-item" id="bn-bookings" onclick="showPage('bookings',this,'bn-bookings')">
+    <svg class="bn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" stroke-width="2" stroke-linecap="round"/><path d="M5 3h14a2 2 0 012 2v16l-4-2-4 2-4-2-4 2V5a2 2 0 012-2z" stroke-width="2"/></svg>
+    <span class="bn-label">Pesanan</span>
+  </button>
+  <button class="bn-item" id="bn-reports" onclick="showPage('reports',this,'bn-reports')">
+    <svg class="bn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke-width="2"/></svg>
+    <span class="bn-label">Notifikasi</span>
+    <span class="bn-badge" id="notif-badge" style="display:none">0</span>
+  </button>
+  <button class="bn-item" id="bn-hamburger" onclick="toggleHamburger()">
+    <div class="hb-trigger-lines" id="hb-lines-bottom"><span></span><span></span><span></span></div>
+    <span class="bn-label">Menu</span>
+  </button>
+</nav>
+
+<!-- ══════════════════════════════════════════════
+     HAMBURGER DRAWER
+══════════════════════════════════════════════ -->
+
+<div class="hb-backdrop" id="hb-backdrop" onclick="closeHamburger()"></div>
+
+<div class="hb-drawer" id="hb-drawer">
+  <div class="hb-drawer-header" style="position:relative">
+    <button class="hb-close-btn" onclick="closeHamburger()">✕</button>
+    <div style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">PilihUmroh.id</div>
+    <div class="hb-user-block">
+      <div class="hb-avatar" id="hb-avatar">?</div>
+      <div style="flex:1;min-width:0">
+        <div id="hb-user-name" style="font-size:15px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Tamu</div>
+        <div id="hb-user-role" style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:1px">Belum masuk akun</div>
+      </div>
+    </div>
+    <button id="hb-auth-btn" onclick="hbGoAkun()"
+      style="margin-top:12px;width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:white;font-family:'Plus Jakarta Sans',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;text-align:center">
+       Masuk / Buat Akun
+    </button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding-bottom:20px">
+    <div class="hb-nav-section">Jamaah</div>
+    <button class="hb-nav-item" onclick="hbGo('dashboard','bn-dashboard')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Beranda</span><span class="hb-arrow">›</span></button>
+    <button class="hb-nav-item" onclick="openGatekeeper();closeHamburger()"><div class="hb-icon" style="background:rgba(201,168,76,0.1)"></div><span>Cek Status Paspor</span><span class="hb-arrow">›</span></button>
+    <button class="hb-nav-item" onclick="hbGo('packages','bn-packages')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Cari Paket Umroh</span><span class="hb-arrow">›</span></button>
+    <button class="hb-nav-item" onclick="hbGo('bookings','bn-bookings')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Cek Pesanan Saya</span><span class="hb-arrow">›</span></button>
+    <div class="hb-divider"></div>
+    <div style="padding:10px 14px">
+      <button class="hb-partner-btn" onclick="hbGoPartner()">
+        <span style="font-size:24px"></span>
+        <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:800">Jadi Partner Biro</div><div style="font-size:11px;font-weight:400;opacity:0.75">Daftarkan travel Anda ke marketplace</div></div>
+        <span style="font-size:16px;opacity:0.7">›</span>
+      </button>
+    </div>
+    <div class="hb-divider"></div>
+    <div class="hb-nav-section">Pengaturan</div>
+    <button class="hb-nav-item" onclick="hbGoSettings('profil')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Profil Saya</span><span class="hb-arrow">›</span></button>
+    <button class="hb-nav-item" onclick="hbGoSettings('tampilan')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Bahasa &amp; Tampilan</span><span class="hb-arrow">›</span></button>
+    <button class="hb-nav-item" onclick="hbGoSettings('notif')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Notifikasi</span><span class="hb-arrow">›</span></button>
+    <div class="hb-divider"></div>
+    <div class="hb-nav-section">Bantuan &amp; Legal</div>
+    <button class="hb-nav-item" onclick="hbGoSettings('bantuan')"><div class="hb-icon" style="background:rgba(41,128,185,0.1)"></div><span>Bantuan / CS</span><span class="hb-arrow">›</span></button>
+    <button class="hb-nav-item" onclick="hbGoSettings('tentang')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Syarat &amp; Ketentuan</span><span class="hb-arrow">›</span></button>
+    <button class="hb-nav-item" onclick="hbGoSettings('tentang')"><div class="hb-icon" style="background:rgba(27,77,62,0.08)"></div><span>Kebijakan Privasi</span><span class="hb-arrow">›</span></button>
+    <div id="hb-admin-section" style="display:none">
+      <div class="hb-divider"></div>
+      <div class="hb-nav-section">Panel Partner / Admin</div>
+      <button class="hb-nav-item" onclick="hbGo('admin',null)"><div class="hb-icon" style="background:rgba(27,77,62,0.1)">⚙</div><span style="font-weight:700;color:var(--emerald)">Panel Admin</span><span class="hb-arrow">›</span></button>
+    </div>
+    <div id="hb-logout-section" style="display:none;padding:10px 14px">
+      <button onclick="doLogout();closeHamburger()" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid rgba(231,76,60,0.2);background:white;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:#C0392B;display:flex;align-items:center;justify-content:center;gap:8px"> Keluar dari Akun</button>
+    </div>
+  </div>
+  <div style="padding:14px 18px;border-top:1px solid rgba(27,77,62,0.07);text-align:center;flex-shrink:0">
+    <div style="font-size:10px;color:var(--muted)">© 2025 PilihUmroh.id · Dibuat dengan ❤ untuk jamaah Indonesia</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SIDEBAR (Desktop)
+══════════════════════════════════════════════ -->
+
+<aside class="sidebar" id="sidebar">
+  <button class="sidebar-toggle" onclick="toggleSidebar()" title="Perkecil / Perbesar">
+    <div class="toggle-arrow"></div>
+  </button>
+  <div class="sidebar-logo">
+    <span class="logo-icon"></span>
+    <div class="logo-text">Pilih<em>Umroh</em></div>
+    <div class="logo-domain">pilihumroh.id</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Menu Utama</div>
+    <button class="nav-item active" onclick="showPage('dashboard',this)">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke-width="2"/><polyline points="9 22 9 12 15 12 15 22" stroke-width="2"/></svg>
+      <span class="nav-txt">Beranda</span>
+    </button>
+    <button class="nav-item" onclick="showPage('packages',this)">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" stroke-width="2"/><path d="M16 3v4M8 3v4M3 11h18" stroke-width="2"/></svg>
+      <span class="nav-txt">Paket Umroh</span>
+      <span class="nav-badge" id="nav-badge-packages-sidebar">0</span>
+    </button>
+    <button class="nav-item" onclick="showPage('bookings',this)">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" stroke-width="2" stroke-linecap="round"/><path d="M5 3h14a2 2 0 012 2v16l-4-2-4 2-4-2-4 2V5a2 2 0 012-2z" stroke-width="2"/></svg>
+      <span class="nav-txt">Pesanan Saya</span>
+    </button>
+    <div class="nav-label">Informasi</div>
+    <button class="nav-item" onclick="showPage('reports',this)">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke-width="2"/></svg>
+      <span class="nav-txt">Notifikasi</span>
+    </button>
+    <div class="nav-label">Sistem</div>
+    <!-- FIX: id="sidebar-admin-btn" agar bisa dikontrol dari JS -->
+    <button class="nav-item" id="sidebar-admin-btn" onclick="showPage('admin',this)"
+      style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.15);margin-top:4px;display:none">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--gold)"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke-width="2" stroke-linecap="round"/></svg>
+      <span class="nav-txt" style="color:var(--gold);font-weight:700">Panel Admin</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-wrap">
+      <div class="user-av" id="sidebar-user-av">?</div>
+      <div>
+        <div class="user-name" id="sidebar-user-name">Tamu</div>
+        <div class="user-role" id="sidebar-user-role">Belum masuk</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════════════ -->
+
+<main class="main" id="main-content">
+
+  <!-- Topbar Desktop -->
+
+  <header class="topbar">
+    <div class="topbar-title" id="page-title">Beranda</div>
+    <div class="topbar-right">
+      <div class="search-bar" style="width:320px">
+        <svg width="15" height="15" fill="none" stroke="#6B7280" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="topbar-search" type="text" placeholder="Cari paket, kota, maskapai..."
+          oninput="liveSearch(this.value)" onblur="setTimeout(()=>closeSearch(),200)" autocomplete="off">
+        <div id="search-dropdown"></div>
+      </div>
+      <button class="notif-btn">
+        <svg width="17" height="17" fill="none" stroke="#6B7280" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke-width="2"/></svg>
+        <span class="notif-dot"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ━━━━━━━━━━ PAGE: DASHBOARD ━━━━━━━━━━ -->
+
+  <div class="page active" id="page-dashboard">
+    <div class="hero">
+      <div class="hero-pattern"></div>
+      <div class="hero-geo"></div>
+      <div style="position:relative;z-index:1">
+        <div class="hero-eyebrow">Bismillahirrahmanirrahim</div>
+        <h1 class="hero-title">Platform Umroh<br><span>Terpercaya Indonesia</span></h1>
+        <p class="hero-sub">Kelola paket umroh, pantau pemesanan, dan berikan pelayanan terbaik bagi jamaah dari satu dashboard terintegrasi.</p>
+        <div class="search-widget">
+          <div class="sw-field">
+            <div class="sw-label">Paket / Nama Travel</div>
+            <input id="hero-keyword" class="sw-input" type="text" placeholder="Arofahmina, Reguler, Premium...">
+          </div>
+          <div class="sw-field">
+            <div class="sw-label">Kota Keberangkatan</div>
+            <select id="hero-city" class="sw-input" style="cursor:pointer">
+              <option value="">Semua Kota</option>
+              <option value="Surabaya"> Surabaya</option>
+              <option value="Malang"> Malang</option>
+            </select>
+          </div>
+          <div class="sw-field">
+            <div class="sw-label">Kategori Paket</div>
+            <select id="hero-cat" class="sw-input" style="cursor:pointer">
+              <option value="">Semua Kategori</option>
+              <option value="Reguler">✈ Reguler</option>
+              <option value="Plus">⭐ Plus</option>
+              <option value="Premium"> Premium</option>
+              <option value="Furoda"> Furoda</option>
+              <option value="Combine"> Combine</option>
+            </select>
+          </div>
+          <button class="sw-btn" onclick="heroSearch()"> Cari Paket</button>
+        </div>
+        <div class="hero-stats">
+          <div class="hs-item"><div class="hs-value" id="stat-paket">0</div><div class="hs-label">Paket Tersedia</div></div>
+          <div class="hs-sep"></div>
+          <div class="hs-item"><div class="hs-value" id="stat-jamaah">0</div><div class="hs-label">Jamaah Terdaftar</div></div>
+          <div class="hs-sep"></div>
+          <div class="hs-item"><div class="hs-value" id="stat-travel">0</div><div class="hs-label">Mitra Travel</div></div>
+          <div class="hs-sep"></div>
+          <div class="hs-item"><div class="hs-value">-</div><div class="hs-label">Kepuasan Jamaah</div></div>
+        </div>
+      </div>
+    </div>
+
+```
+<!-- Gatekeeper Widget -->
+<div style="background:linear-gradient(135deg,#7A5C1E,#9A7A2E);border-radius:20px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:18px;position:relative;overflow:hidden">
+  <div style="position:absolute;right:-20px;top:-20px;width:140px;height:140px;border:1px solid rgba(255,255,255,0.06);border-radius:50%"></div>
+  <div style="font-size:40px;flex-shrink:0;position:relative;z-index:1"></div>
+  <div style="flex:1;position:relative;z-index:1">
+    <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Gatekeeper - Fitur Unik</div>
+    <div style="font-size:17px;font-weight:700;color:white;margin-bottom:4px">Cek Kesiapan Paspor Anda</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.5">Pastikan paspor Anda memenuhi syarat sebelum mendaftar umroh. Gratis, hanya 30 detik.</div>
+  </div>
+  <button onclick="openGatekeeper()" style="background:white;color:#7A5C1E;border:none;border-radius:12px;padding:12px 20px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;flex-shrink:0;position:relative;z-index:1;white-space:nowrap">Cek Sekarang →</button>
+</div>
+
+<!-- Kredibilitas PPIU -->
+<div style="margin-bottom:24px">
+  <div style="background:linear-gradient(135deg,#0D3528,#1B4D3E);border-radius:20px;padding:24px;margin-bottom:14px;text-align:center">
+    <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.25);border-radius:20px;padding:6px 18px;margin-bottom:16px">
+      <span></span>
+      <span style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:2px;text-transform:uppercase">Jaminan Keamanan Ibadah</span>
+    </div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:white;line-height:1.3;margin-bottom:10px">Semua Travel di PilihUmroh.id<br><span style="color:var(--gold)">Berizin Resmi Kemenag RI</span></div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.6);max-width:400px;margin:0 auto">Kami hanya bermitra dengan travel yang memiliki izin PPIU aktif dari Kementerian Agama Republik Indonesia.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px">
+    <div style="background:white;border-radius:16px;padding:18px;border:1px solid rgba(27,77,62,0.08);box-shadow:var(--card-shadow)"><div style="width:44px;height:44px;border-radius:12px;background:rgba(27,77,62,0.08);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px"></div><div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:5px">Izin PPIU Kemenag</div><div style="font-size:11.5px;color:var(--muted);line-height:1.6">Setiap travel memiliki Surat Izin Penyelenggara Perjalanan Ibadah Umroh yang aktif dan dapat diverifikasi di sipatuh.kemenag.go.id</div></div>
+    <div style="background:white;border-radius:16px;padding:18px;border:1px solid rgba(27,77,62,0.08);box-shadow:var(--card-shadow)"><div style="width:44px;height:44px;border-radius:12px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px">⭐</div><div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:5px">Akreditasi A &amp; B</div><div style="font-size:11.5px;color:var(--muted);line-height:1.6">Mitra kami diprioritaskan yang memiliki akreditasi A dari Kemenag - standar pelayanan jamaah tertinggi.</div></div>
+    <div style="background:white;border-radius:16px;padding:18px;border:1px solid rgba(27,77,62,0.08);box-shadow:var(--card-shadow)"><div style="width:44px;height:44px;border-radius:12px;background:rgba(41,128,185,0.08);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px"></div><div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:5px">Anggota HIMPUH</div><div style="font-size:11.5px;color:var(--muted);line-height:1.6">Beberapa mitra terdaftar di HIMPUH - Himpunan Penyelenggara Umroh dan Haji Indonesia.</div></div>
+    <div style="background:white;border-radius:16px;padding:18px;border:1px solid rgba(27,77,62,0.08);box-shadow:var(--card-shadow)"><div style="width:44px;height:44px;border-radius:12px;background:rgba(155,89,182,0.08);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px"></div><div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:5px">Visa Terjamin</div><div style="font-size:11.5px;color:var(--muted);line-height:1.6">Travel mitra berpengalaman dalam pengurusan visa umroh resmi Kedutaan Arab Saudi.</div></div>
+  </div>
+</div>
+
+<!-- Kenapa PilihUmroh.id -->
+<div style="background:white;border-radius:20px;overflow:hidden;box-shadow:var(--card-shadow);border:1px solid rgba(27,77,62,0.06);margin-bottom:24px">
+  <div style="background:linear-gradient(135deg,#7B5D1A,var(--gold));padding:28px 32px 24px">
+    <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.18);border-radius:20px;padding:5px 14px;margin-bottom:14px"><span>⭐</span><span style="font-size:10px;font-weight:700;color:white;letter-spacing:1.5px;text-transform:uppercase">Keunggulan Kami</span></div>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:white;line-height:1.3;margin-bottom:6px">Kenapa Memilih PilihUmroh.id?</h2>
+    <p style="font-size:13px;color:rgba(255,255,255,0.75)">6 alasan jamaah mempercayai kami</p>
+  </div>
+  <div style="padding:28px 32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+    <div style="background:var(--cream);border-radius:16px;padding:20px;text-align:center;border:1px solid rgba(27,77,62,0.06)"><div style="font-size:36px;margin-bottom:10px">✅</div><div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px">Travel Resmi Kemenag</div><div style="font-size:12px;color:var(--muted);line-height:1.55">Semua mitra memiliki izin PPIU resmi, terverifikasi dan terjamin.</div></div>
+    <div style="background:var(--cream);border-radius:16px;padding:20px;text-align:center;border:1px solid rgba(27,77,62,0.06)"><div style="font-size:36px;margin-bottom:10px"></div><div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px">Perbandingan Mudah</div><div style="font-size:12px;color:var(--muted);line-height:1.55">Bandingkan harga, maskapai, dan hotel dalam satu halaman.</div></div>
+    <div style="background:var(--cream);border-radius:16px;padding:20px;text-align:center;border:1px solid rgba(27,77,62,0.06)"><div style="font-size:36px;margin-bottom:10px"></div><div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px">Chat Langsung Travel</div><div style="font-size:12px;color:var(--muted);line-height:1.55">Terhubung langsung dengan admin travel via WhatsApp.</div></div>
+    <div style="background:var(--cream);border-radius:16px;padding:20px;text-align:center;border:1px solid rgba(27,77,62,0.06)"><div style="font-size:36px;margin-bottom:10px"></div><div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px">Mobile-First</div><div style="font-size:12px;color:var(--muted);line-height:1.55">Cari paket dan hubungi travel langsung dari genggaman tangan.</div></div>
+    <div style="background:var(--cream);border-radius:16px;padding:20px;text-align:center;border:1px solid rgba(27,77,62,0.06)"><div style="font-size:36px;margin-bottom:10px"></div><div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px">Ulasan Nyata</div><div style="font-size:12px;color:var(--muted);line-height:1.55">Rating dari jamaah yang sudah berangkat untuk keputusan tepat.</div></div>
+    <div style="background:var(--cream);border-radius:16px;padding:20px;text-align:center;border:1px solid rgba(27,77,62,0.06)"><div style="font-size:36px;margin-bottom:10px"></div><div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px">Gratis Selamanya</div><div style="font-size:12px;color:var(--muted);line-height:1.55">100% gratis untuk mencari dan membandingkan paket umroh.</div></div>
+  </div>
+</div>
+
+<!-- Inspirasi Ibadah -->
+<div style="background:linear-gradient(135deg,var(--emerald),#2D6A56);border-radius:16px;padding:24px;text-align:center;margin-bottom:24px">
+  <div style="font-size:28px;margin-bottom:12px"></div>
+  <p style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--gold-pale);line-height:1.8;margin-bottom:10px;direction:rtl">لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لَا شَرِيكَ لَكَ لَبَّيْكَ</p>
+  <p style="font-size:13px;color:rgba(255,255,255,0.8);font-style:italic;margin-bottom:8px">"Aku penuhi panggilan-Mu ya Allah, aku penuhi. Tidak ada sekutu bagi-Mu."</p>
+  <p style="font-size:11.5px;color:rgba(255,255,255,0.5)">- Talbiyah, doa para jamaah umroh</p>
+</div>
+```
+
+  </div><!-- end page-dashboard -->
+
+  <!-- ━━━━━━━━━━ PAGE: PAKET UMROH ━━━━━━━━━━ -->
+
+  <div class="page" id="page-packages">
+    <div class="pg-header">
+      <div>
+        <div class="pg-title">Paket Umroh</div>
+        <div class="pg-sub" id="pkg-count-sub"></div>
+      </div>
+      <!-- FIX: tombol hanya muncul untuk biro/admin via JS -->
+      <button class="btn-primary" id="btn-tambah-paket" onclick="openModal()" style="display:none">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-width="2.5" stroke-linecap="round"/></svg>
+        Tambah Paket
+      </button>
+    </div>
+    <div class="city-tabs">
+      <button class="city-tab active" onclick="filterCity(this,'Semua')"> Semua Kota</button>
+      <button class="city-tab" onclick="filterCity(this,'Surabaya')"> Surabaya</button>
+      <button class="city-tab" onclick="filterCity(this,'Malang')"> Malang</button>
+    </div>
+    <div class="filter-row">
+      <button class="filter-chip active" onclick="filterPkg(this,'Semua')">Semua</button>
+      <button class="filter-chip" onclick="filterPkg(this,'Reguler')">✈ Reguler</button>
+      <button class="filter-chip" onclick="filterPkg(this,'Plus')">⭐ Plus</button>
+      <button class="filter-chip" onclick="filterPkg(this,'Premium')"> Premium</button>
+      <button class="filter-chip" onclick="filterPkg(this,'Furoda')"> Furoda</button>
+      <button class="filter-chip" onclick="filterPkg(this,'Combine')"> Combine</button>
+      <!-- FIX: onchange="sortPackages(this.value)" sebelumnya tidak ada -->
+      <select class="filter-select" onchange="sortPackages(this.value)">
+        <option value="popular">Urutkan: Terpopuler</option>
+        <option value="price-asc">Harga Terendah</option>
+        <option value="price-desc">Harga Tertinggi</option>
+        <option value="rating">Rating Tertinggi</option>
+        <option value="newest">Terbaru</option>
+      </select>
+    </div>
+    <div class="pkgs-grid" id="packages-grid"></div>
+  </div>
+
+  <!-- ━━━━━━━━━━ PAGE: PESANAN ━━━━━━━━━━ -->
+
+  <div class="page" id="page-bookings">
+    <div class="pg-header">
+      <div>
+        <div class="pg-title">Pesanan Saya</div>
+        <div class="pg-sub">Pantau status &amp; detail perjalanan umroh Anda</div>
+      </div>
+    </div>
+    <div class="filter-row" style="margin-bottom:22px">
+      <button class="filter-chip active" onclick="filterOrders(this,'semua')">Semua</button>
+      <button class="filter-chip" onclick="filterOrders(this,'pending')">⏳ Menunggu</button>
+      <button class="filter-chip" onclick="filterOrders(this,'confirmed')">✅ Dikonfirmasi</button>
+      <button class="filter-chip" onclick="filterOrders(this,'berangkat')">✈ Berangkat</button>
+      <button class="filter-chip" onclick="filterOrders(this,'selesai')"> Selesai</button>
+    </div>
+    <div id="orders-list" style="display:flex;flex-direction:column;gap:18px">
+      <div style="text-align:center;padding:60px 20px">
+        <div style="font-size:72px;margin-bottom:16px"></div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Belum Ada Pesanan</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.65;max-width:300px;margin:0 auto 24px">Pesanan umroh Anda akan muncul di sini setelah mendaftar paket.</div>
+        <button onclick="showPage('packages',null,'bn-packages')" style="background:var(--emerald);color:white;border:none;border-radius:12px;padding:13px 28px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif"> Lihat Paket Umroh</button>
+      </div>
+    </div>
+    <!-- Booking Detail Modal -->
+    <div id="booking-detail-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,22,40,0.55);backdrop-filter:blur(5px);z-index:300;align-items:center;justify-content:center" onclick="closeBookingDetail(event)">
+      <div id="booking-detail-modal" style="background:white;border-radius:22px;width:560px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:0 40px 80px rgba(0,0,0,0.28);animation:modalIn 0.28s ease">
+        <div style="background:linear-gradient(135deg,var(--emerald),#2D6A56);padding:24px 28px;border-radius:22px 22px 0 0;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);letter-spacing:1.5px;text-transform:uppercase">Detail Pesanan</div>
+            <div id="booking-detail-code" style="font-size:20px;font-family:'Cormorant Garamond',serif;font-weight:700;color:white;margin-top:4px">#PU-2025001</div>
+          </div>
+          <button onclick="closeBookingDetail()" style="width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+        </div>
+        <div id="booking-detail-body" style="padding:24px 28px">
+          <p style="color:var(--muted);font-size:13px">Pilih pesanan untuk melihat detail.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ━━━━━━━━━━ PAGE: NOTIFIKASI ━━━━━━━━━━ -->
+
+  <div class="page" id="page-reports">
+    <div class="pg-header">
+      <div>
+        <div class="pg-title">Notifikasi</div>
+        <div class="pg-sub" id="notif-sub">Tidak ada notifikasi baru</div>
+      </div>
+      <button class="btn-primary" onclick="markAllRead()">✓ Tandai Semua Dibaca</button>
+    </div>
+    <div class="filter-row" style="margin-bottom:22px">
+      <button class="filter-chip active" onclick="filterNotif(this,'semua')">Semua</button>
+      <button class="filter-chip" onclick="filterNotif(this,'pesanan')"> Pesanan</button>
+      <button class="filter-chip" onclick="filterNotif(this,'pembayaran')"> Pembayaran</button>
+      <button class="filter-chip" onclick="filterNotif(this,'dokumen')"> Dokumen</button>
+      <button class="filter-chip" onclick="filterNotif(this,'keberangkatan')">✈ Keberangkatan</button>
+    </div>
+    <div id="notif-list">
+      <div style="text-align:center;padding:60px 20px">
+        <div style="font-size:72px;margin-bottom:16px"></div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Belum Ada Notifikasi</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.65;max-width:300px;margin:0 auto">Notifikasi pesanan, pembayaran, dan dokumen akan muncul di sini.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ━━━━━━━━━━ PAGE: PANEL ADMIN ━━━━━━━━━━ -->
+
+  <div class="page" id="page-admin">
+    <div class="pg-header">
+      <div>
+        <div class="pg-title">⚙ Panel Admin</div>
+        <div class="pg-sub">Kelola paket, mitra travel, dan pengaturan platform</div>
+      </div>
+      <button class="btn-primary" onclick="openModal()">+ Tambah Paket</button>
+    </div>
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
+      <div style="background:linear-gradient(135deg,var(--emerald),#2D6A56);border-radius:16px;padding:18px;color:white"><div id="adm-stat-paket" style="font-size:28px;font-weight:800;font-family:'Cormorant Garamond',serif">0</div><div style="font-size:11px;opacity:0.7;margin-top:4px">Total Paket</div></div>
+      <div style="background:linear-gradient(135deg,#2D6A56,#3D7A66);border-radius:16px;padding:18px;color:white"><div id="adm-stat-travel" style="font-size:28px;font-weight:800;font-family:'Cormorant Garamond',serif">0</div><div style="font-size:11px;opacity:0.7;margin-top:4px">Mitra Travel</div></div>
+      <div style="background:linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.05));border:1px solid rgba(201,168,76,0.2);border-radius:16px;padding:18px"><div id="adm-stat-jamaah" style="font-size:28px;font-weight:800;font-family:'Cormorant Garamond',serif;color:var(--gold)">0</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Total Jamaah</div></div>
+      <div style="background:linear-gradient(135deg,rgba(231,76,60,0.12),rgba(231,76,60,0.04));border:1px solid rgba(231,76,60,0.15);border-radius:16px;padding:18px;cursor:pointer" onclick="document.getElementById('verif-biro-section').scrollIntoView({behavior:'smooth'})"><div id="adm-stat-pending" style="font-size:28px;font-weight:800;font-family:'Cormorant Garamond',serif;color:#E74C3C">0</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Menunggu Verifikasi</div></div>
+    </div>
+    <!-- Quick Actions -->
+    <div style="background:white;border-radius:18px;padding:20px;margin-bottom:20px;border:1px solid rgba(27,77,62,0.07);box-shadow:var(--card-shadow)">
+      <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:14px"> Mulai dari Sini</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+        <button onclick="openModal()" style="padding:14px 12px;background:var(--emerald);color:white;border:none;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:8px"><span style="font-size:24px"></span>Tambah Paket Baru</button>
+        <button onclick="openTravelModal()" style="padding:14px 12px;background:rgba(27,77,62,0.06);color:var(--emerald);border:1.5px solid rgba(27,77,62,0.12);border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:8px"><span style="font-size:24px"></span>Daftarkan Travel</button>
+        <button onclick="openSettingsFloating()" style="padding:14px 12px;background:rgba(27,77,62,0.06);color:var(--emerald);border:1.5px solid rgba(27,77,62,0.12);border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:8px"><span style="font-size:24px">⚙</span>Pengaturan</button>
+      </div>
+    </div>
+    <!-- Daftar Paket -->
+    <div style="background:white;border-radius:18px;border:1px solid rgba(27,77,62,0.07);box-shadow:var(--card-shadow);overflow:hidden">
+      <div style="padding:18px 20px;border-bottom:1px solid rgba(27,77,62,0.06);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:800;color:var(--text)"> Daftar Paket</div>
+        <button onclick="openModal()" style="font-size:12px;font-weight:700;color:var(--emerald);background:rgba(27,77,62,0.06);border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">+ Tambah</button>
+      </div>
+      <div id="admin-packages-list">
+        <div style="text-align:center;padding:50px 20px"><div style="font-size:56px;margin-bottom:12px"></div><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Belum ada paket</div><button onclick="openModal()" style="background:var(--emerald);color:white;border:none;border-radius:11px;padding:12px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">+ Tambah Paket Pertama</button></div>
+      </div>
+    </div>
+    <!-- Verifikasi Biro -->
+    <div style="background:white;border-radius:18px;border:1px solid rgba(27,77,62,0.07);box-shadow:var(--card-shadow);overflow:hidden;margin-top:20px" id="verif-biro-section">
+      <div style="padding:18px 20px;border-bottom:1px solid rgba(27,77,62,0.06);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:13px;font-weight:800;color:var(--text)"> Verifikasi Biro Travel</div>
+          <span id="verif-badge-count" style="display:none;background:#E74C3C;color:white;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px">0</span>
+        </div>
+        <button onclick="renderVerifBiro()" style="font-size:12px;font-weight:700;color:var(--emerald);background:rgba(27,77,62,0.06);border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif"> Refresh</button>
+      </div>
+      <div id="admin-verif-list"><div style="text-align:center;padding:40px 20px;color:var(--muted)"><div style="font-size:40px;margin-bottom:10px">✅</div><div style="font-size:13px;font-weight:700">Tidak ada antrian verifikasi</div></div></div>
+    </div>
+    <!-- Admin Bookings -->
+    <div style="background:white;border-radius:18px;border:1px solid rgba(27,77,62,0.07);box-shadow:var(--card-shadow);overflow:hidden;margin-top:20px" id="admin-bookings-section">
+      <div style="padding:18px 20px;border-bottom:1px solid rgba(27,77,62,0.06);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:13px;font-weight:800;color:var(--text)"> Semua Booking Platform</div>
+          <span id="admin-booking-count" style="display:none;background:var(--emerald);color:white;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px">0</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <select id="admin-booking-filter-status" onchange="renderAdminBookings()" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(27,77,62,0.15);font-size:12px;font-family:'Plus Jakarta Sans',sans-serif">
+            <option value="">Semua Status</option>
+            <option value="menunggu_konfirmasi">⏳ Menunggu</option>
+            <option value="dikonfirmasi">✅ Dikonfirmasi</option>
+            <option value="visa_diproses"> Visa Diproses</option>
+            <option value="siap_berangkat">✈ Siap Berangkat</option>
+            <option value="selesai"> Selesai</option>
+            <option value="dibatalkan">❌ Dibatalkan</option>
+          </select>
+          <button onclick="renderAdminBookings()" style="font-size:12px;font-weight:700;color:var(--emerald);background:rgba(27,77,62,0.06);border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif"> Refresh</button>
+        </div>
+      </div>
+      <div id="admin-bookings-table" style="overflow-x:auto"><div style="padding:40px 20px;text-align:center;color:var(--muted)"><div style="font-size:40px;margin-bottom:10px"></div><div style="font-size:13px;font-weight:700">Memuat data booking...</div></div></div>
+    </div>
+    <!-- Biro Bookings -->
+    <div id="biro-bookings-section" style="display:none;background:white;border-radius:18px;border:1px solid rgba(27,77,62,0.07);box-shadow:var(--card-shadow);overflow:hidden;margin-top:20px">
+      <div style="padding:18px 20px;border-bottom:1px solid rgba(27,77,62,0.06);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:13px;font-weight:800;color:var(--text)"> Booking Masuk ke Travel Anda</div>
+          <span id="biro-booking-count" style="display:none;background:#E74C3C;color:white;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px">0</span>
+        </div>
+        <button onclick="renderBiroBookings()" style="font-size:12px;font-weight:700;color:var(--emerald);background:rgba(27,77,62,0.06);border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif"> Refresh</button>
+      </div>
+      <div id="biro-bookings-table" style="overflow-x:auto"></div>
+    </div>
+    <!-- Mitra Travel -->
+    <div style="background:white;border-radius:18px;border:1px solid rgba(27,77,62,0.07);box-shadow:var(--card-shadow);overflow:hidden;margin-top:20px">
+      <div style="padding:18px 20px;border-bottom:1px solid rgba(27,77,62,0.06);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:800;color:var(--text)"> Mitra Travel Terdaftar</div>
+        <button onclick="openTravelModal()" style="font-size:12px;font-weight:700;color:var(--emerald);background:rgba(27,77,62,0.06);border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">+ Daftarkan</button>
+      </div>
+      <div id="admin-travel-list"><div style="text-align:center;padding:40px 20px"><div style="font-size:48px;margin-bottom:12px"></div><div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">Belum ada mitra travel</div><button onclick="openTravelModal()" style="background:rgba(27,77,62,0.07);color:var(--emerald);border:1.5px solid rgba(27,77,62,0.12);border-radius:10px;padding:10px 20px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">Daftarkan Travel Pertama</button></div></div>
+    </div>
+  </div><!-- end page-admin -->
+
+</main><!-- end main -->
+
+<!-- ══════════════════════════════════════════════
+     MODAL: DAFTARKAN TRAVEL
+══════════════════════════════════════════════ -->
+
+<div class="modal-overlay" id="travel-modal-overlay" onclick="closeTravelModal(event)" style="display:none">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:500px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Daftarkan Mitra Travel</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Travel harus memiliki izin PPIU aktif dari Kemenag RI</div>
+      </div>
+      <button class="modal-close" onclick="closeTravelModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:24px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div><label class="form-label">Nama Travel *</label><input id="tv_nama" class="form-input" type="text" placeholder="Contoh: Arofahmina Travel"></div>
+        <div><label class="form-label">Nomor PPIU Kemenag *</label><input id="tv_ppiu" class="form-input" type="text" placeholder="Contoh: No. U.280/2021"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label class="form-label">Kota</label><input id="tv_kota" class="form-input" type="text" placeholder="Surabaya"></div>
+          <div><label class="form-label">Akreditasi</label>
+            <select id="tv_akreditasi" class="form-input" style="cursor:pointer">
+              <option value="">Pilih</option>
+              <option>Akreditasi A</option><option>Akreditasi B</option>
+              <option>Akreditasi C</option><option>Belum Terakreditasi</option>
+            </select>
+          </div>
+        </div>
+        <div><label class="form-label">No. WhatsApp Admin</label><input id="tv_wa" class="form-input" type="text" placeholder="628xxxxxxxxxx"></div>
+        <div><label class="form-label">Alamat Kantor</label><input id="tv_alamat" class="form-input" type="text" placeholder="Jl. ..."></div>
+        <button onclick="saveTravelMitra()" style="width:100%;padding:14px;border-radius:12px;background:var(--emerald);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">✅ Daftarkan Travel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     FLOATING SETTINGS PANEL
+══════════════════════════════════════════════ -->
+
+<div id="fs-backdrop" onclick="closeSettingsFloating()"
+  style="display:none;position:fixed;inset:0;background:rgba(10,22,40,0.45);backdrop-filter:blur(3px);z-index:8900"></div>
+
+<div id="fs-panel"
+  style="display:none;position:fixed;bottom:0;left:0;right:0;background:white;border-radius:24px 24px 0 0;z-index:8901;max-height:90dvh;overflow-y:auto;--webkit-overflow-scrolling:touch;overscroll-behavior:contain;box-shadow:0 -8px 40px rgba(0,0,0,0.18);transform:translateY(100%);transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);padding-bottom:env(safe-area-inset-bottom,0px)">
+  <div style="display:flex;justify-content:center;padding:12px 0 4px">
+    <div style="width:40px;height:4px;border-radius:4px;background:rgba(27,77,62,0.15)"></div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 14px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button id="fs-back-btn" onclick="closeSettingsSubPanel()"
+        style="display:none;width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(27,77,62,0.1);background:none;cursor:pointer;font-size:16px;align-items:center;justify-content:center">←</button>
+      <div id="fs-title" style="font-size:17px;font-weight:800;color:var(--text)">Pengaturan</div>
+    </div>
+    <button onclick="closeSettingsFloating()"
+      style="width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(27,77,62,0.1);background:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--muted)">✕</button>
+  </div>
+  <!-- Main Menu -->
+  <div id="fs-main-menu">
+    <div id="fs-user-card" style="display:none;margin:0 16px 14px;background:linear-gradient(135deg,var(--emerald),#2D6A56);border-radius:16px;padding:16px;align-items:center;gap:12px">
+      <div id="fs-uc-avatar" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#E8C96A);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:var(--emerald);flex-shrink:0">?</div>
+      <div style="flex:1;min-width:0">
+        <div id="fs-uc-nama" style="font-size:14px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Nama</div>
+        <div id="fs-uc-role" style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px">Role</div>
+      </div>
+      <button onclick="closeSettingsFloating();setTimeout(()=>toggleAccountPopup(),200)"
+        style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);color:white;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;flex-shrink:0">Edit →</button>
+    </div>
+    <div style="padding:0 8px 8px">
+      <div id="fs-menu-akun-guest" style="margin:0 8px 8px">
+        <button onclick="openSettingsSubPanel('akun')"
+          style="width:100%;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,var(--emerald),#2D6A56);border:none;text-align:left;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:14px">
+          <span style="font-size:24px"></span>
+          <div style="flex:1"><div style="font-size:14px;font-weight:700;color:white">Masuk / Daftar</div><div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:2px">Login atau buat akun baru</div></div>
+          <span style="color:rgba(255,255,255,0.5);font-size:16px">›</span>
+        </button>
+      </div>
+      <div style="height:1px;background:rgba(27,77,62,0.07);margin:4px 8px 10px"></div>
+      <div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;padding:0 8px 6px">Akun Saya</div>
+      <div id="fs-menu-loggedin" style="display:none">
+        <button onclick="openSettingsSubPanel('profil')" class="fs-item"><span class="fs-item-icon" style="background:rgba(27,77,62,0.07)"></span><div class="fs-item-text"><div class="fs-item-label">Profil Saya</div><div class="fs-item-sub">Nama, foto, data diri</div></div><span class="fs-item-arrow">›</span></button>
+        <button onclick="openSettingsSubPanel('dokumen')" class="fs-item"><span class="fs-item-icon" style="background:rgba(41,128,185,0.08)"></span><div class="fs-item-text"><div class="fs-item-label">Dokumen Saya</div><div class="fs-item-sub">Paspor, KTP, KK</div></div><span class="fs-item-arrow">›</span></button>
+        <button onclick="openSettingsSubPanel('keamanan')" class="fs-item"><span class="fs-item-icon" style="background:rgba(231,76,60,0.07)"></span><div class="fs-item-text"><div class="fs-item-label">Keamanan</div><div class="fs-item-sub">Password &amp; PIN</div></div><span class="fs-item-arrow">›</span></button>
+      </div>
+      <div style="height:1px;background:rgba(27,77,62,0.07);margin:8px 8px 10px"></div>
+      <div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;padding:0 8px 6px">Preferensi</div>
+      <button onclick="openSettingsSubPanel('notif')" class="fs-item"><span class="fs-item-icon" style="background:rgba(201,168,76,0.1)"></span><div class="fs-item-text"><div class="fs-item-label">Notifikasi</div><div class="fs-item-sub">Atur preferensi</div></div><span class="fs-item-arrow">›</span></button>
+      <button onclick="openSettingsSubPanel('tampilan')" class="fs-item"><span class="fs-item-icon" style="background:rgba(155,89,182,0.08)"></span><div class="fs-item-text"><div class="fs-item-label">Bahasa &amp; Tampilan</div><div class="fs-item-sub">Tema &amp; bahasa</div></div><span class="fs-item-arrow">›</span></button>
+      <div style="height:1px;background:rgba(27,77,62,0.07);margin:8px 8px 10px"></div>
+      <div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;padding:0 8px 6px">Info &amp; Bantuan</div>
+      <button onclick="openSettingsSubPanel('bantuan')" class="fs-item"><span class="fs-item-icon" style="background:rgba(52,152,219,0.08)"></span><div class="fs-item-text"><div class="fs-item-label">Bantuan &amp; CS</div><div class="fs-item-sub">FAQ &amp; kontak</div></div><span class="fs-item-arrow">›</span></button>
+      <button onclick="openSettingsSubPanel('tentang')" class="fs-item"><span class="fs-item-icon" style="background:rgba(27,77,62,0.07)">ℹ</span><div class="fs-item-text"><div class="fs-item-label">Tentang &amp; Legal</div><div class="fs-item-sub">Syarat, privasi, versi</div></div><span class="fs-item-arrow">›</span></button>
+      <div id="fs-menu-logout" style="display:none;margin-top:8px">
+        <div style="height:1px;background:rgba(27,77,62,0.07);margin:4px 8px 10px"></div>
+        <button onclick="doLogout();closeSettingsFloating()" class="fs-item">
+          <span class="fs-item-icon" style="background:rgba(231,76,60,0.07)"></span>
+          <div class="fs-item-text"><div class="fs-item-label" style="color:#C0392B">Keluar dari Akun</div><div class="fs-item-sub">Sesi akan diakhiri</div></div>
+        </button>
+      </div>
+    </div>
+    <div style="height:24px"></div>
+  </div>
+  <!-- Sub Panel -->
+  <div id="fs-sub-panel" style="display:none;padding:0 16px 40px">
+    <div id="fs-sub-content"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MODAL: GATEKEEPER
+══════════════════════════════════════════════ -->
+
+<div id="gatekeeper-modal" onclick="closeGatekeeper(event)"
+  style="display:none;position:fixed;inset:0;background:rgba(10,22,40,0.6);backdrop-filter:blur(5px);z-index:400;align-items:center;justify-content:center">
+  <div onclick="event.stopPropagation()"
+    style="background:white;border-radius:22px;width:440px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:0 40px 80px rgba(0,0,0,0.3);animation:modalIn 0.28s ease">
+    <div style="background:linear-gradient(135deg,#7A5C1E,#9A7A2E);padding:22px 24px;border-radius:22px 22px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.6);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px"> Gatekeeper</div>
+        <div style="font-size:18px;font-weight:700;color:white">Cek Kesiapan Paspor</div>
+      </div>
+      <button onclick="closeGatekeeper()" style="width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div style="padding:24px">
+      <!-- FIX: gk-form pakai display:flex agar bisa di-hide/show dengan benar -->
+      <div id="gk-form" style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:4px">Isi data paspor Anda. Data tidak disimpan ke server.</div>
+        <div><label style="font-size:11px;font-weight:700;color:var(--text);display:block;margin-bottom:4px">NAMA LENGKAP (sesuai paspor)</label><input id="gk_nama" class="form-input" type="text" placeholder="Contoh: SITI AMINAH BINTI AHMAD"></div>
+        <div><label style="font-size:11px;font-weight:700;color:var(--text);display:block;margin-bottom:4px">NOMOR PASPOR</label><input id="gk_no" class="form-input" type="text" placeholder="Contoh: B1234567" style="text-transform:uppercase"></div>
+        <div><label style="font-size:11px;font-weight:700;color:var(--text);display:block;margin-bottom:4px">TANGGAL KEDALUWARSA PASPOR</label><input id="gk_exp" class="form-input" type="date"></div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:var(--cream);border-radius:10px;border:1px solid rgba(27,77,62,0.08)">
+          <input id="gk_vaksin" type="checkbox" style="width:18px;height:18px;accent-color:var(--emerald);cursor:pointer">
+          <div><div style="font-size:13px;font-weight:600;color:var(--text)">Sudah vaksin meningitis</div><div style="font-size:11px;color:var(--muted)">Wajib untuk masuk Arab Saudi</div></div>
+        </label>
+        <button onclick="checkPaspor()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#7A5C1E,#9A7A2E);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer"> Cek Kesiapan Sekarang</button>
+      </div>
+      <div id="gk-result" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MODAL: TAMBAH / EDIT PAKET
+══════════════════════════════════════════════ -->
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-pkg-title">Tambah Paket Umroh Baru</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Lengkapi detail paket untuk jamaah</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Nama Paket *</label><input id="pkg_name" class="form-input" type="text" placeholder="Paket Reguler Syawal 12H"></div>
+        <div class="form-group"><label class="form-label">Kategori *</label>
+          <select id="pkg_cat" class="form-input" style="cursor:pointer">
+            <option value="Reguler">Reguler</option><option value="Plus">Plus</option>
+            <option value="Premium">Premium</option><option value="Furoda">Furoda</option><option value="Combine">Combine</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+            Nama Travel *
+            <span id="pkg_travel_badge" style="display:none;font-size:10px;font-weight:700;color:var(--emerald);background:rgba(27,77,62,0.08);padding:2px 8px;border-radius:20px">✓ Dari akun Anda</span>
+          </label>
+          <input id="pkg_travel" class="form-input" type="text" placeholder="Nama Travel Anda">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+            No. PPIU Kemenag *
+            <span id="pkg_ppiu_badge" style="display:none;font-size:10px;font-weight:700;color:var(--emerald);background:rgba(27,77,62,0.08);padding:2px 8px;border-radius:20px">✓ Terverifikasi</span>
+          </label>
+          <input id="pkg_ppiu" class="form-input" type="text" placeholder="No. U.280/2021">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Kota Keberangkatan</label><input id="pkg_city" class="form-input" type="text" placeholder="Surabaya"></div>
+        <div class="form-group"><label class="form-label">Bandara / Titik Kumpul</label><input id="pkg_departure" class="form-input" type="text" placeholder="Bandara Juanda, Surabaya"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Maskapai</label>
+          <select id="pkg_airline" class="form-input" style="cursor:pointer">
+            <option value="Garuda Indonesia">Garuda Indonesia</option>
+            <option value="Saudi Airlines">Saudi Airlines</option>
+            <option value="Emirates">Emirates</option>
+            <option value="Turkish Airlines">Turkish Airlines</option>
+            <option value="Batik Air">Batik Air</option>
+            <option value="Lion Air">Lion Air</option>
+            <option value="Citilink">Citilink</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Durasi</label><input id="pkg_dur" class="form-input" type="text" placeholder="12H 11M"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Harga per Jamaah (Rp) *</label><input id="pkg_price" class="form-input" type="text" placeholder="28500000"></div>
+        <div class="form-group"><label class="form-label">Kuota Jamaah</label><input id="pkg_slots" class="form-input" type="number" placeholder="30" value="30"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Hotel Makkah</label><input id="pkg_hotel_makkah" class="form-input" type="text" placeholder="Nama Hotel ★★★★"></div>
+        <div class="form-group"><label class="form-label">Hotel Madinah</label><input id="pkg_hotel_madinah" class="form-input" type="text" placeholder="Nama Hotel ★★★★"></div>
+      </div>
+      <div class="form-group"><label class="form-label">No. WhatsApp Admin Travel</label><input id="pkg_wa" class="form-input" type="text" placeholder="628xxxxxxxxxx"></div>
+      <div class="form-group"><label class="form-label">Deskripsi Paket</label><textarea id="pkg_desc" class="form-textarea" placeholder="Ceritakan keunggulan paket ini: hotel, fasilitas, pembimbing, dll..."></textarea></div>
+      <div class="form-actions">
+        <button class="btn-secondary" onclick="closeModal()">Batal</button>
+        <button class="btn-primary-full" id="modal-save-btn" onclick="savePackage()"> Simpan &amp; Publikasikan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Package Modal -->
+
+<div class="detail-modal-overlay" id="detail-modal-overlay" onclick="closeDetailModal(event)">
+  <div class="detail-modal" onclick="event.stopPropagation()" id="detail-modal-content"></div>
+</div>
+
+<!-- Toast Notification -->
+
+<div id="toast"
+  style="display:none;position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(27,77,62,0.96);color:white;padding:14px 18px;border-radius:14px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,0.25);min-width:220px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif"></div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT - load terakhir
+══════════════════════════════════════════════ -->
+
+<!-- Supabase SDK Resmi -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="script.js"></script>
+
+</body>
+</html>
