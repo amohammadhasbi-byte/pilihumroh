@@ -1,0 +1,2131 @@
+/* ============================================================
+app.js — PilihUmroh.id
+Versi FINAL — semua perbaikan sudah masuk:
+\u2705 SDK Supabase resmi (dari CDN)
+\u2705 ROLE_LABELS & ROLE_LABELS_SHORT konstanta global
+\u2705 isMgr() / isAdmin() / isBiro() helper global
+\u2705 supabaseClient konsisten pakai getSupaClient()
+\u2705 User_id (kapital) sesuai database
+\u2705 updateBookingStatus() terhubung ke tombol konfirmasi
+\u2705 showSettingsSection() dead code dihapus
+\u2705 doLogin() / doRegister() / doLogout() pakai Supabase Auth resmi
+============================================================ */
+
+// ─────────────────────────────────────────────────────────────
+// KONFIGURASI SUPABASE
+// ─────────────────────────────────────────────────────────────
+const SUPA_URL = ‘https://pqmznyblxgddfupopvcj.supabase.co’;
+const SUPA_KEY = ‘eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxbXpueWJseGdkZGZ1cG9wdmNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzODMzMzcsImV4cCI6MjA4ODk1OTMzN30.5sNV1wKE-eMTs8E7nDZJ2ZPMDYSNockeSGVxLy2A0Os’;
+
+let supabaseClient = null;
+
+function getSupaClient() {
+if (supabaseClient) return supabaseClient;
+try {
+if (window.supabase && window.supabase.createClient) {
+supabaseClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+auth: { autoRefreshToken: true, persistSession: true }
+});
+}
+} catch(e) { console.warn(‘Supabase init error:’, e); }
+if (!supabaseClient) {
+const noop = async () => ({ data: null, error: { message: ‘SDK not ready’ } });
+const db   = () => ({ select:db, eq:db, single:db, limit:db, order:db,
+insert:noop, update:noop, delete:noop,
+then:(r)=>r({ data:null, error:{message:‘SDK not ready’} }), catch:()=>({}) });
+supabaseClient = { auth:{ getSession:noop, signInWithPassword:noop, signUp:noop, signOut:noop }, from:db };
+}
+return supabaseClient;
+}
+
+// ─────────────────────────────────────────────────────────────
+// KONSTANTA GLOBAL — tidak perlu copy-paste lagi
+// ─────────────────────────────────────────────────────────────
+const ROLE_LABELS = {
+jamaah: ‘\uD83E\uDDD5 Jamaah’,
+biro:   ‘\uD83C\uDFE2 Biro Travel’,
+admin:  ‘\u2699\uFE0F Super Admin’,
+};
+const ROLE_LABELS_SHORT = {
+jamaah: ‘Jamaah’,
+biro:   ‘Biro Travel’,
+admin:  ‘Super Admin’,
+};
+
+// ─────────────────────────────────────────────────────────────
+// HELPER GLOBAL — tidak perlu inline berulang
+// ─────────────────────────────────────────────────────────────
+function isMgr()   { return !!(currentUser && (currentUser.role===‘biro’||currentUser.role===‘admin’)); }
+function isAdmin() { return !!(currentUser && currentUser.role===‘admin’); }
+function isBiro()  { return !!(currentUser && currentUser.role===‘biro’); }
+
+// ─────────────────────────────────────────────────────────────
+// DATA & STATE
+// ─────────────────────────────────────────────────────────────
+const packages = [];
+let activeCity = ‘Semua’, activeCat = ‘Semua’;
+
+async function loadPackages() {
+try {
+const { data, error } = await getSupaClient().from(‘packages’).select(’*’);
+if (error) throw error;
+if (data && data.length > 0) {
+packages.length = 0;
+data.forEach(p => packages.push({
+id: p.id, ownerEmail: p.owner_email,
+name: p.name, travel: p.travel, ppiu: p.ppiu,
+city: p.city || ‘Indonesia’, cityIcon: ‘\uD83D\uDD4C’,
+departure: p.departure, airline: p.airline, dur: p.dur, cat: p.cat,
+price: p.price, price_raw: p.price_raw || 0,
+dp: p.dp || ‘Rp 5.000.000’, slots: p.slots || 30,
+hotelMakkah: p.hotel_makkah || ‘—’, hotelMadinah: p.hotel_madinah || ‘—’,
+wa: p.wa || ‘’, desc: p.desc || ‘’,
+badge: p.badge || p.cat, icon: p.icon || ‘\uD83D\uDD4C’,
+bg: p.bg || ‘pi-1’, aktif: p.aktif !== false,
+rating: p.rating || ‘—’, reviews: p.reviews || 0,
+include: p.include || [‘Tiket pesawat PP’,‘Visa umroh’,‘Hotel Makkah’,‘Hotel Madinah’,‘Muthawif’,‘Konsumsi 3x sehari’],
+exclude: p.exclude || [‘Pembuatan paspor’,‘Keperluan pribadi’,‘Vaksin meningitis’]
+}));
+return;
+}
+} catch(e) {
+console.warn(‘loadPackages error:’, e);
+}
+// Fallback data demo jika Supabase kosong
+if (packages.length === 0) {
+packages.push(
+{ id:1, ownerEmail:‘biro@demo.id’, name:‘Paket Reguler Syawal 12H’, travel:‘Arofahmina Travel’, ppiu:‘No. 8120/2022’, city:‘Surabaya’, cityIcon:’\uD83E\uDD88’, departure:‘Bandara Juanda, Surabaya’, airline:‘Garuda Indonesia’, dur:‘12H 11M’, cat:‘Reguler’, price:‘28.500.000’, price_raw:28500000, dp:‘Rp 5.000.000’, slots:30, hotelMakkah:‘Shaza Makkah \u2605\u2605\u2605\u2605’, hotelMadinah:‘Dallah Taibah \u2605\u2605\u2605\u2605’, wa:‘6281234567890’, desc:‘Paket umroh reguler terlengkap dengan pembimbing berpengalaman.’, badge:‘Reguler’, icon:’\uD83D\uDD4C’, bg:‘pi-1’, aktif:true, rating:‘4.9’, reviews:128, include:[‘Tiket pesawat PP’,‘Visa umroh’,‘Hotel Makkah’,‘Hotel Madinah’,‘Muthawif’,‘Konsumsi 3x sehari’,‘Perlengkapan umroh’], exclude:[‘Pembuatan paspor’,‘Keperluan pribadi’,‘Vaksin meningitis’] },
+{ id:2, ownerEmail:‘biro@demo.id’, name:‘Paket Premium Ramadhan’, travel:‘Ahsan Perdana’, ppiu:‘No. U.280/2021’, city:‘Malang’, cityIcon:’\uD83C\uDF4E’, departure:‘Bandara Abdul Rachman Saleh’, airline:‘Saudi Airlines’, dur:‘14H 13M’, cat:‘Premium’, price:‘45.000.000’, price_raw:45000000, dp:‘Rp 10.000.000’, slots:15, hotelMakkah:‘Conrad Makkah \u2605\u2605\u2605\u2605\u2605’, hotelMadinah:‘Anwar Al Madinah \u2605\u2605\u2605\u2605\u2605’, wa:‘6289876543210’, desc:‘Paket premium khusus Ramadhan, hotel bintang 5 jarak tempuh kaki dari Masjidil Haram.’, badge:‘Premium’, icon:’\uD83D\uDD4C’, bg:‘pi-3’, aktif:true, rating:‘5.0’, reviews:64, include:[‘Tiket business class PP’,‘Visa umroh’,‘Hotel bintang 5’,‘Muthawif private’,‘Full board konsumsi’,‘Ziarah lengkap’], exclude:[‘Keperluan pribadi’,‘Oleh-oleh’] },
+{ id:3, ownerEmail:‘biro@demo.id’, name:‘Paket Furoda VIP’, travel:‘Nurul Hayat’, ppiu:‘No. U.491/2021’, city:‘Surabaya’, cityIcon:’\uD83E\uDD88’, departure:‘Bandara Juanda, Surabaya’, airline:‘Emirates’, dur:‘13H’, cat:‘Furoda’, price:‘85.000.000’, price_raw:85000000, dp:‘Rp 15.000.000’, slots:8, hotelMakkah:‘Fairmont Makkah \u2605\u2605\u2605\u2605\u2605’, hotelMadinah:‘Pullman Madinah \u2605\u2605\u2605\u2605\u2605’, wa:‘6285555555555’, desc:‘Furoda VIP tanpa antri haji, visa prioritas langsung dari Kerajaan Arab Saudi.’, badge:‘Furoda’, icon:’\uD83D\uDD4C’, bg:‘pi-2’, aktif:true, rating:‘4.8’, reviews:32, include:[‘Visa furoda resmi’,‘Tiket first class’,‘Hotel mewah’,‘Muthawif VIP’,‘Akses tanpa antri’], exclude:[‘Keperluan pribadi’] }
+);
+}
+}
+
+function savePackagesToStorage() {
+try { localStorage.setItem(‘pu_packages’, JSON.stringify(packages)); } catch(e) {}
+}
+
+// ─────────────────────────────────────────────────────────────
+// FILTER & RENDER PAKET
+// ─────────────────────────────────────────────────────────────
+function getFiltered() {
+const accounts = JSON.parse(localStorage.getItem(‘pu_accounts’) || ‘[]’);
+const approved = new Set(accounts.filter(a => a.role===‘biro’ && (!a.verif_status || a.verif_status===‘approved’)).map(a => a.email));
+return packages.filter(p => {
+const cityOk  = activeCity===‘Semua’ || p.city===activeCity;
+const catOk   = activeCat===‘Semua’  || p.cat===activeCat;
+const verifOk = !p.ownerEmail || approved.has(p.ownerEmail) || p.ownerEmail===‘biro@demo.id’;
+return cityOk && catOk && verifOk;
+});
+}
+
+function renderPackages(data) {
+const grid = document.getElementById(‘packages-grid’); if (!grid) return;
+const mgr = isMgr();
+if (!data || !data.length) {
+grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)"><div style="font-size:48px;margin-bottom:16px">\uD83D\uDD0D</div><p>Tidak ada paket di kategori ini.</p></div>`;
+return;
+}
+grid.innerHTML = data.map(p => {
+const inactive = p.aktif===false;
+return ` <div class="pkg-card" style="position:relative${inactive?';opacity:0.7':''}" onclick="showDetail(${p.id})"> <div class="pkg-img ${p.bg}" style="position:relative"> <span style="font-size:58px;position:relative;z-index:1">${p.icon}</span> <div class="pkg-badge">${p.badge||p.cat}</div> ${mgr?'':`<div class="pkg-fav" onclick="event.stopPropagation()">\u2661</div>`} <div style="position:absolute;bottom:12px;left:14px;z-index:2"> <span style="background:rgba(27,77,62,0.85);color:var(--gold-pale);font-size:9px;padding:3px 10px;border-radius:20px;font-weight:700">${p.travel}</span> </div> ${mgr?`
+<div onclick="event.stopPropagation()" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:10">
+<button onclick="toggleAktifPaket(${p.id})" style="width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;background:${inactive?'rgba(231,76,60,0.85)':'rgba(46,204,113,0.85)'}">
+${inactive?‘⏸’:‘▶’}
+</button>
+<button onclick="quickEditPaket(${p.id})" style="width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:14px;background:rgba(255,255,255,0.88)">\u270F\uFE0F</button>
+<button onclick="confirmDeletePaket(${p.id})" style="width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:14px;background:rgba(231,76,60,0.85)">\uD83D\uDDD1\uFE0F</button>
+</div>
+${inactive?`<div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);border-radius:inherit;display:flex;align-items:center;justify-content:center;z-index:5"><span style="background:rgba(231,76,60,0.9);color:white;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px">NONAKTIF</span></div>`:’’}
+`:''} </div> <div class="pkg-body"> <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"> <div class="pkg-airline">\u2708 ${(p.airline||'').split('/')[0]}</div> <div class="city-tag">${p.cityIcon||'\uD83D\uDD4C'} ${p.city}</div> </div> <div class="pkg-name">${p.name}</div> <div class="pkg-meta"> <div class="pkg-meta-item">⏱\uFE0F ${p.dur}</div> <div class="pkg-meta-item">\uD83D\uDC65 ${p.slots} pax</div> <div class="pkg-meta-item">\uD83C\uDFF7\uFE0F ${p.cat}</div> </div> <div class="pkg-footer"> <div> <div class="pkg-price-lbl">Mulai dari</div> <div class="pkg-price">Rp ${p.price} <span>/jamaah</span></div> </div> <div class="pkg-rating">⭐ ${p.rating} <span style="color:var(--muted);font-weight:400;font-size:11px">(${p.reviews})</span></div> </div> </div> </div>`;
+}).join(’’);
+}
+
+function filterCity(btn, city) {
+document.querySelectorAll(’.city-tab’).forEach(c => c.classList.remove(‘active’));
+btn.classList.add(‘active’); activeCity = city;
+renderPackages(getFiltered());
+}
+function filterPkg(btn, cat) {
+document.querySelectorAll(’#page-packages .filter-chip’).forEach(c => c.classList.remove(‘active’));
+btn.classList.add(‘active’); activeCat = cat;
+renderPackages(getFiltered());
+}
+function sortPackages(val) {
+const data = […getFiltered()];
+if (val===‘price-asc’)  data.sort((a,b)=>(a.price_raw||0)-(b.price_raw||0));
+if (val===‘price-desc’) data.sort((a,b)=>(b.price_raw||0)-(a.price_raw||0));
+if (val===‘rating’)     data.sort((a,b)=>parseFloat(b.rating||0)-parseFloat(a.rating||0));
+if (val===‘newest’)     data.sort((a,b)=>(b.id||0)-(a.id||0));
+renderPackages(data);
+}
+
+// ─────────────────────────────────────────────────────────────
+// DETAIL PAKET
+// ─────────────────────────────────────────────────────────────
+function showDetail(id) {
+const p = packages.find(x => x.id===id || x.id===parseInt(id)); if (!p) return;
+const priceRaw = p.price_raw || parseInt((p.price||‘0’).replace(/./g,’’)) || 0;
+const dpRaw    = parseInt((p.dp||‘5000000’).replace(/\D/g,’’)) || 5000000;
+const sisaRaw  = priceRaw - dpRaw;
+const sisa     = ‘Rp ’ + sisaRaw.toLocaleString(‘id-ID’);
+const urgency  = (p.slots||0) <= 5;
+const starsN   = Math.min(5, Math.round(parseFloat(p.rating)||0));
+const starStr  = ‘\u2605’.repeat(starsN)+’\u2606’.repeat(5-starsN);
+const mapMakkah  = ‘https://maps.google.com/?q=’+encodeURIComponent((p.hotelMakkah||’’)+’ Makkah’);
+const mapMadinah = ‘https://maps.google.com/?q=’+encodeURIComponent((p.hotelMadinah||’’)+’ Madinah’);
+const st = (p.travel||’’).replace(/’/g,”\’”);
+const sn = (p.name||’’).replace(/’/g,”\’”);
+
+document.getElementById(‘detail-modal-content’).innerHTML = `<div style="background:linear-gradient(160deg,#0D3528,#1B4D3E,#2D6A56);border-radius:20px 20px 0 0;overflow:hidden;min-height:180px;position:relative"> <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.06;font-size:200px;line-height:1">\uD83D\uDD4C</div> <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.6))"></div> <div style="position:absolute;top:16px;left:16px;background:rgba(201,168,76,0.95);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px"> <span>\uD83D\uDEE1\uFE0F</span><span style="font-size:10px;font-weight:800;color:#0D3528">TERVERIFIKASI KEMENAG</span> </div> <button onclick="closeDetailModal()" style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:white;font-size:16px;cursor:pointer">\u2715</button> <div style="position:relative;z-index:1;padding:60px 20px 20px"> <div style="font-size:11px;color:rgba(201,168,76,0.9);font-weight:700;margin-bottom:6px">${p.cityIcon||'\uD83D\uDD4C'} ${p.city} · ${p.travel}</div> <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:white;line-height:1.3;margin-bottom:8px">${p.name}</div> <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"> <div><span style="color:var(--gold)">${starStr}</span> <span style="font-size:12px;font-weight:700;color:white;margin-left:4px">${p.rating}</span> <span style="font-size:11px;color:rgba(255,255,255,0.6);margin-left:4px">(${p.reviews} ulasan)</span> </div> <span style="background:rgba(255,255,255,0.15);color:white;font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px">${p.cat}</span> ${urgency ?`<span style="background:#E74C3C;color:white;font-size:10px;font-weight:800;padding:3px 10px;border-radius:10px;animation:pulse 1.5s infinite">\uD83D\uDD25 Sisa ${p.slots} Kursi!</span>`:`<span style="background:rgba(255,255,255,0.15);color:white;font-size:10px;padding:3px 10px;border-radius:10px">\uD83D\uDC65 ${p.slots} Kursi</span>`} </div> </div> </div> <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(27,77,62,0.08)"> <div style="background:white;padding:12px 14px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">\u2708\uFE0F</span><div><div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">Maskapai</div><div style="font-size:12px;font-weight:700;color:var(--text)">${p.airline}</div></div></div> <div style="background:white;padding:12px 14px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏱\uFE0F</span><div><div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">Durasi</div><div style="font-size:12px;font-weight:700;color:var(--text)">${p.dur}</div></div></div> <div onclick="window.open('${mapMakkah}','_blank')" style="background:white;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer"> <span style="font-size:20px">\uD83C\uDFE2</span><div style="min-width:0"><div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">Hotel Makkah \uD83D\uDCCD</div><div style="font-size:11px;font-weight:700;color:var(--emerald);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.hotelMakkah||'—'}</div></div> </div> <div onclick="window.open('${mapMadinah}','_blank')" style="background:white;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer"> <span style="font-size:20px">\uD83C\uDFE2</span><div style="min-width:0"><div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">Hotel Madinah \uD83D\uDCCD</div><div style="font-size:11px;font-weight:700;color:var(--emerald);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.hotelMadinah||'—'}</div></div> </div> </div> <div style="padding:16px 20px;background:rgba(27,77,62,0.03);border-bottom:2px solid rgba(27,77,62,0.08)"> <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"> <div> <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px">Harga Mulai Dari</div> <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;color:var(--emerald);line-height:1">Rp ${p.price}<span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:var(--muted);font-weight:400"> / orang</span></div> <div style="display:flex;gap:12px;margin-top:4px"> <div style="font-size:11px;color:var(--muted)">DP: <strong style="color:var(--emerald)">${p.dp||'Rp 5.000.000'}</strong></div> <div style="font-size:11px;color:var(--muted)">Sisa: <strong>${sisa}</strong></div> </div> </div> <div style="display:flex;flex-direction:column;gap:8px"> <div style="display:flex;gap:8px;flex-direction:column"> <button onclick="openBookingModal(${p.id})" style="background:linear-gradient(135deg,#1B4D3E,#2D6A56);color:white;border:none;border-radius:12px;padding:12px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap">\uD83D\uDD4C Pesan Sekarang</button> <button onclick="hubungiWA('${p.wa}','${sn}','${st}')" style="background:linear-gradient(135deg,#25D366,#128C7E);color:white;border:none;border-radius:12px;padding:10px 22px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap">\uD83D\uDCAC Tanya via WhatsApp</button> </div> <button onclick="closeDetailModal()" style="background:white;color:var(--text);border:1.5px solid rgba(27,77,62,0.12);border-radius:12px;padding:10px 22px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">\u2715 Tutup</button> </div> </div> </div> <div style="padding:20px"> <div class="dm-section-title">\uD83D\uDCDD Deskripsi Paket</div> <p style="font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:16px">${p.desc||'Paket umroh berkualitas bersama '+p.travel+'.'}</p> <div class="dm-section-title">\u2705 Sudah Termasuk</div> <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px"> ${(p.include||[]).map(i=>`<div class="dm-include-item"><div class="chk">\u2713</div><span>${i}</span></div>`).join('')} </div> <div class="dm-section-title">\u274C Tidak Termasuk</div> <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:20px"> ${(p.exclude||[]).map(i=>`<div class="dm-exclude-item"><span class="xchk">\u2715</span><span>${i}</span></div>`).join('')} </div> <div style="display:flex;gap:10px"> <button onclick="closeDetailModal()" style="flex:1;padding:12px;border-radius:11px;border:1.5px solid rgba(27,77,62,0.12);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--text)">Tutup</button> <button onclick="hubungiWA('${p.wa}','${sn}','${st}')" style="flex:2;padding:12px;border-radius:11px;border:none;background:linear-gradient(135deg,#25D366,#128C7E);color:white;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">\uD83D\uDCAC Hubungi ${p.travel}</button> </div> </div>`;
+document.getElementById(‘detail-modal-overlay’).classList.add(‘open’);
+}
+
+function openBookingBtn(paketId) {
+// Wrapper untuk tombol pesan di kartu paket
+openBookingModal(paketId);
+}
+
+function hubungiWA(wa, paket, travel) {
+if (!wa) { toast(‘Nomor WhatsApp tidak tersedia’,‘error’); return; }
+const msg = encodeURIComponent(‘Assalamualaikum Admin ‘+travel+’, saya tertarik dengan *’+paket+’* di *pilihumroh.id*. Mohon info lengkapnya. Jazakallah khairan.’);
+window.open(‘https://wa.me/’+wa+’?text=’+msg,’_blank’);
+}
+function closeDetailModal(e) {
+if (!e || e.target===document.getElementById(‘detail-modal-overlay’))
+document.getElementById(‘detail-modal-overlay’).classList.remove(‘open’);
+}
+
+// ─────────────────────────────────────────────────────────────
+// NAVIGASI
+// ─────────────────────────────────────────────────────────────
+function showPage(id, el, bnId) {
+document.querySelectorAll(’.page’).forEach(p => p.classList.remove(‘active’));
+document.querySelectorAll(’.nav-item’).forEach(n => n.classList.remove(‘active’));
+document.querySelectorAll(’.bn-item’).forEach(n => n.classList.remove(‘active’));
+const pg = document.getElementById(‘page-’+id); if (!pg) return;
+pg.classList.add(‘active’);
+if (el) el.classList.add(‘active’);
+if (bnId) { const bn=document.getElementById(bnId); if(bn) bn.classList.add(‘active’); }
+const titles = { dashboard:‘Beranda’, packages:‘Paket Umroh’, bookings:‘Pesanan Saya’, reports:‘Notifikasi’, admin:‘Panel Admin’ };
+const titleEl = document.getElementById(‘page-title’);
+if (titleEl) titleEl.textContent = titles[id]||id;
+window.scrollTo(0,0);
+if (id===‘admin’) { renderAdminPackages(); renderAdminTravel(); renderVerifBiro(); renderAdminBookings(); if(isBiro()) renderBiroDashboard(); }
+if (id===‘reports’) { renderNotifList(); }
+if (id===‘bookings’) { renderOrderList(JSON.parse(localStorage.getItem(‘pu_orders’)||’[]’)); }
+}
+function navigateToPackages() {
+showPage(‘packages’,null,‘bn-packages’);
+document.querySelectorAll(’.nav-item’)[1]?.classList.add(‘active’);
+}
+
+// ─────────────────────────────────────────────────────────────
+// SEARCH
+// ─────────────────────────────────────────────────────────────
+function liveSearch(val) {
+const q=val.trim().toLowerCase(), dd=document.getElementById(‘search-dropdown’);
+if (!q) { dd.style.display=‘none’; return; }
+const results = packages.filter(p=>[(p.name||’’),(p.travel||’’),(p.city||’’),(p.cat||’’),(p.airline||’’),(p.desc||’’)].some(s=>s.toLowerCase().includes(q))).slice(0,6);
+dd.innerHTML = !results.length
+? `<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px"><div style="font-size:28px">\uD83D\uDD0D</div>Tidak ditemukan untuk "<strong>${val}</strong>"</div>`
+: `<div class="sd-header">${results.length} Paket</div>`+results.map(p=>` <div class="sd-item" onclick="goToPackage(${p.id})"> <div class="sd-icon">${p.icon||'\uD83D\uDD4C'}</div> <div style="flex:1;min-width:0"><div class="sd-name">${p.name}</div><div class="sd-meta">${p.cityIcon||'\uD83D\uDD4C'} ${p.city} · ${p.travel}</div></div> <div class="sd-price">Rp ${p.price}</div> </div>`).join(’’);
+dd.style.display=‘block’;
+}
+function closeSearch() { const dd=document.getElementById(‘search-dropdown’); if(dd) dd.style.display=‘none’; }
+function goToPackage(id) { closeSearch(); const inp=document.getElementById(‘topbar-search’); if(inp) inp.value=’’; navigateToPackages(); activeCity=‘Semua’; activeCat=‘Semua’; renderPackages(packages); setTimeout(()=>showDetail(id),150); }
+
+function heroSearch() {
+const keyword=(document.getElementById(‘hero-keyword’)?.value||’’).trim().toLowerCase();
+const city=document.getElementById(‘hero-city’)?.value||’’;
+const cat=document.getElementById(‘hero-cat’)?.value||’’;
+const results=packages.filter(p=>{
+const kwOk=!keyword||[(p.name||’’),(p.travel||’’),(p.city||’’),(p.cat||’’),(p.desc||’’)].some(s=>s.toLowerCase().includes(keyword));
+return kwOk&&(!city||p.city===city)&&(!cat||p.cat===cat);
+});
+navigateToPackages(); activeCity=city||‘Semua’; activeCat=cat||‘Semua’;
+document.querySelectorAll(’.city-tab’).forEach(t=>t.classList.toggle(‘active’,t.textContent.includes(activeCity===‘Semua’?‘Semua’:activeCity)));
+document.querySelectorAll(’#page-packages .filter-chip’).forEach(t=>t.classList.toggle(‘active’,t.textContent.trim()===(activeCat===‘Semua’?‘Semua’:activeCat)));
+const label=[keyword&&`"${keyword}"`,city,cat].filter(Boolean).join(’ · ‘);
+renderSearchResults(results,‘Hasil’+(label?’: ‘+label:’’));
+}
+function renderSearchResults(results,label) {
+const grid=document.getElementById(‘packages-grid’); if(!grid) return;
+const banner=`<div style="grid-column:1/-1;background:linear-gradient(135deg,var(--emerald),var(--emerald-mid));border-radius:14px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between"><div style="color:white;font-size:14px;font-weight:600">\uD83D\uDD0D ${label}</div><div style="display:flex;gap:10px;align-items:center"><span style="background:var(--gold);color:var(--emerald);font-size:12px;font-weight:700;padding:4px 14px;border-radius:20px">${results.length} paket</span><button onclick="clearSearch()" class="srb-clear">\u2715 Reset</button></div></div>`;
+if(!results.length){grid.innerHTML=banner+`<div style="grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--muted)"><div style="font-size:48px;margin-bottom:12px">\uD83D\uDD4C</div><p>Tidak ada paket yang cocok.</p></div>`;return;}
+renderPackages(results); grid.innerHTML=banner+grid.innerHTML;
+}
+function clearSearch() {
+[‘hero-keyword’,‘hero-city’,‘hero-cat’].forEach(id=>{const el=document.getElementById(id);if(el)el.value=’’;});
+activeCity=‘Semua’; activeCat=‘Semua’;
+document.querySelectorAll(’.city-tab’).forEach((c,i)=>c.classList.toggle(‘active’,i===0));
+document.querySelectorAll(’#page-packages .filter-chip’).forEach((c,i)=>c.classList.toggle(‘active’,i===0));
+renderPackages(packages);
+}
+
+function openMobileSearch() { document.getElementById(‘mobile-search-overlay’).classList.add(‘open’); setTimeout(()=>document.getElementById(‘mobile-search-input’)?.focus(),100); }
+function closeMobileSearch(e) {
+if (!e||e.target===document.getElementById(‘mobile-search-overlay’)) {
+document.getElementById(‘mobile-search-overlay’).classList.remove(‘open’);
+const inp=document.getElementById(‘mobile-search-input’); if(inp) inp.value=’’;
+const res=document.getElementById(‘mobile-search-results’); if(res) res.style.display=‘none’;
+}
+}
+function mobileLiveSearch(val) {
+const q=val.trim().toLowerCase(), res=document.getElementById(‘mobile-search-results’);
+if (!q) { res.style.display=‘none’; return; }
+const results=packages.filter(p=>[(p.name||’’),(p.travel||’’),(p.city||’’),(p.cat||’’),(p.airline||’’)].some(s=>s.toLowerCase().includes(q))).slice(0,7);
+res.innerHTML = !results.length
+? `<div style="padding:24px;text-align:center;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">\uD83D\uDD0D</div>Tidak ditemukan</div>`
+: `<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;background:var(--cream)">${results.length} Paket</div>`
++results.map(p=>`<div onclick="mobileGoToPackage(${p.id})" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(27,77,62,0.05);cursor:pointer"><div style="width:42px;height:42px;border-radius:10px;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${p.icon||'\uD83D\uDD4C'}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">${p.name}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${p.city} · ${p.travel}</div></div><div style="font-size:12px;font-weight:700;color:var(--emerald);white-space:nowrap;flex-shrink:0">Rp ${p.price}</div></div>`).join(’’);
+res.style.display=‘block’;
+}
+function mobileGoToPackage(id) { closeMobileSearch(); navigateToPackages(); activeCity=‘Semua’; activeCat=‘Semua’; renderPackages(packages); window.scrollTo(0,0); setTimeout(()=>showDetail(id),200); }
+
+function toggleSidebar() { document.getElementById(‘sidebar’).classList.toggle(‘collapsed’); document.getElementById(‘main-content’).classList.toggle(‘collapsed’); }
+
+// ─────────────────────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────────────────────
+function toast(msg, type=‘success’) {
+const colors={success:‘var(–emerald)’,error:’#E74C3C’,warning:’#E67E22’,info:’#2563EB’};
+const icons={success:’\u2705’,error:’\u274C’,warning:’\u26A0\uFE0F’,info:‘ℹ\uFE0F’};
+const old=document.getElementById(’__toast_el’); if(old) old.remove();
+const t=document.createElement(‘div’); t.id=’__toast_el’;
+t.style.cssText=`position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:${colors[type]||colors.success};color:white;padding:13px 22px;border-radius:14px;font-size:13.5px;font-weight:600;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,0.22);display:flex;align-items:center;gap:9px;max-width:88vw;text-align:center;font-family:'Plus Jakarta Sans',sans-serif`;
+t.innerHTML=`<span style="font-size:17px">${icons[type]||'\u2705'}</span>${msg}`;
+document.body.appendChild(t);
+setTimeout(()=>{t.style.opacity=‘0’;t.style.transition=‘opacity 0.4s’;setTimeout(()=>t.remove(),400);},2800);
+}
+function hideConfirmToast() { const old=document.getElementById(’__toast_el’); if(old) old.remove(); }
+
+// ─────────────────────────────────────────────────────────────
+// MODAL PAKET
+// ─────────────────────────────────────────────────────────────
+function openModal() {
+document.getElementById(‘modal-overlay’).classList.add(‘open’);
+const titleEl=document.getElementById(‘modal-pkg-title’), saveBtnEl=document.getElementById(‘modal-save-btn’);
+if (titleEl) titleEl.textContent=‘Tambah Paket Umroh Baru’;
+if (saveBtnEl) { saveBtnEl.textContent=’\uD83D\uDD4C Simpan & Publikasikan’; saveBtnEl.onclick=savePackage; }
+if (currentUser && currentUser.role===‘biro’) {
+[‘pkg_travel’,‘pkg_ppiu’].forEach(id=>{
+const el=document.getElementById(id), badgeId=id===‘pkg_travel’?‘pkg_travel_badge’:‘pkg_ppiu_badge’;
+const val=id===‘pkg_travel’?currentUser.travel:currentUser.ppiu;
+if (el&&val) { el.value=val; el.readOnly=true; el.style.cssText+=’;background:rgba(27,77,62,0.04);border-color:rgba(27,77,62,0.2);color:var(–emerald);font-weight:600’; const badge=document.getElementById(badgeId); if(badge) badge.style.display=’’; }
+});
+}
+}
+function closeModal(e) {
+if (!e||e.target===document.getElementById(‘modal-overlay’)) {
+document.getElementById(‘modal-overlay’).classList.remove(‘open’);
+[‘pkg_travel’,‘pkg_ppiu’].forEach(id=>{ const el=document.getElementById(id); if(el){el.readOnly=false;el.style.background=el.style.borderColor=el.style.color=el.style.fontWeight=’’;} });
+[‘pkg_travel_badge’,‘pkg_ppiu_badge’].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=‘none’; });
+}
+}
+
+async function savePackage() {
+const nama=document.getElementById(‘pkg_name’)?.value.trim(), travel=document.getElementById(‘pkg_travel’)?.value.trim(), ppiu=document.getElementById(‘pkg_ppiu’)?.value.trim(), harga=document.getElementById(‘pkg_price’)?.value.replace(/\D/g,’’);
+if (!nama||!travel||!ppiu||!harga) { toast(‘Nama paket, travel, PPIU, dan harga wajib diisi!’,‘error’); return; }
+const priceInt=parseInt(harga);
+const newPkg = { id:Date.now(), ownerEmail:currentUser?.email||’’, name:nama, travel, ppiu, city:document.getElementById(‘pkg_city’)?.value.trim()||‘Indonesia’, cityIcon:’\uD83D\uDD4C’, departure:document.getElementById(‘pkg_departure’)?.value.trim()||’’, airline:document.getElementById(‘pkg_airline’)?.value||‘Garuda Indonesia’, dur:document.getElementById(‘pkg_dur’)?.value.trim()||‘12H 11M’, cat:document.getElementById(‘pkg_cat’)?.value||‘Reguler’, price:priceInt.toLocaleString(‘id-ID’), price_raw:priceInt, dp:‘Rp 5.000.000’, slots:parseInt(document.getElementById(‘pkg_slots’)?.value)||30, hotelMakkah:document.getElementById(‘pkg_hotel_makkah’)?.value.trim()||’—’, hotelMadinah:document.getElementById(‘pkg_hotel_madinah’)?.value.trim()||’—’, wa:document.getElementById(‘pkg_wa’)?.value.replace(/\D/g,’’)||’’, desc:document.getElementById(‘pkg_desc’)?.value.trim()||’’, badge:document.getElementById(‘pkg_cat’)?.value||‘Reguler’, icon:’\uD83D\uDD4C’, bg:‘pi-’+((packages.length%6)+1), aktif:true, rating:’—’, reviews:0, include:[‘Tiket pesawat PP’,‘Visa umroh’,‘Hotel Makkah’,‘Hotel Madinah’,‘Muthawif’,‘Konsumsi 3x sehari’], exclude:[‘Pembuatan paspor’,‘Keperluan pribadi’,‘Vaksin meningitis’] };
+try {
+const { data, error } = await getSupaClient().from(‘packages’).insert({ owner_email:newPkg.ownerEmail, name:newPkg.name, travel:newPkg.travel, ppiu:newPkg.ppiu, city:newPkg.city, departure:newPkg.departure, airline:newPkg.airline, dur:newPkg.dur, cat:newPkg.cat, price:newPkg.price, price_raw:newPkg.price_raw, dp:newPkg.dp, slots:newPkg.slots, hotel_makkah:newPkg.hotelMakkah, hotel_madinah:newPkg.hotelMadinah, wa:newPkg.wa, desc:newPkg.desc, badge:newPkg.badge, icon:newPkg.icon, bg:newPkg.bg, aktif:true });
+if (!error && data) newPkg.id=data.id||data[0]?.id||newPkg.id;
+} catch(e) { console.warn(‘savePackage DB error:’,e); }
+packages.push(newPkg); savePackagesToStorage(); closeModal(); renderPackages(getFiltered()); renderAdminPackages(); updateStats();
+toast(‘Paket “’+nama+’” berhasil ditambahkan! \uD83D\uDD4C’);
+[‘pkg_name’,‘pkg_travel’,‘pkg_city’,‘pkg_ppiu’,‘pkg_price’,‘pkg_dur’,‘pkg_slots’,‘pkg_hotel_makkah’,‘pkg_hotel_madinah’,‘pkg_departure’,‘pkg_wa’,‘pkg_desc’].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=’’; });
+}
+
+function quickEditPaket(id) {
+const p=packages.find(x=>x.id===id||x.id===parseInt(id)); if(!p) return;
+openModal();
+setTimeout(()=>{
+const sv=(eid,v)=>{ const el=document.getElementById(eid); if(el){el.value=v||’’;el.readOnly=false;el.style.background=el.style.borderColor=el.style.color=el.style.fontWeight=’’;} };
+sv(‘pkg_name’,p.name); sv(‘pkg_travel’,p.travel); sv(‘pkg_city’,p.city); sv(‘pkg_ppiu’,p.ppiu);
+sv(‘pkg_price’,p.price_raw||p.price.replace(/./g,’’)); sv(‘pkg_dur’,p.dur); sv(‘pkg_airline’,p.airline);
+sv(‘pkg_cat’,p.cat); sv(‘pkg_slots’,p.slots); sv(‘pkg_hotel_makkah’,p.hotelMakkah);
+sv(‘pkg_hotel_madinah’,p.hotelMadinah); sv(‘pkg_departure’,p.departure); sv(‘pkg_wa’,p.wa); sv(‘pkg_desc’,p.desc);
+const titleEl=document.getElementById(‘modal-pkg-title’), saveBtnEl=document.getElementById(‘modal-save-btn’);
+if(titleEl) titleEl.textContent=’\u270F\uFE0F Edit Paket Umroh’;
+if(saveBtnEl){saveBtnEl.textContent=’\uD83D\uDCBE Simpan Perubahan’;saveBtnEl.onclick=()=>savePackageEdit(id);}
+},80);
+}
+
+async function savePackageEdit(id) {
+const idx=packages.findIndex(p=>p.id===id||p.id===parseInt(id)); if(idx===-1) return;
+const name=document.getElementById(‘pkg_name’)?.value.trim(); if(!name){toast(‘Nama wajib diisi!’,‘error’);return;}
+const pr=parseInt(document.getElementById(‘pkg_price’)?.value.replace(/\D/g,’’))||0;
+packages[idx]={…packages[idx], name, price:pr.toLocaleString(‘id-ID’), price_raw:pr, travel:document.getElementById(‘pkg_travel’)?.value||packages[idx].travel, city:document.getElementById(‘pkg_city’)?.value||packages[idx].city, dur:document.getElementById(‘pkg_dur’)?.value||packages[idx].dur, airline:document.getElementById(‘pkg_airline’)?.value||packages[idx].airline, cat:document.getElementById(‘pkg_cat’)?.value||packages[idx].cat, slots:parseInt(document.getElementById(‘pkg_slots’)?.value)||packages[idx].slots, hotelMakkah:document.getElementById(‘pkg_hotel_makkah’)?.value||packages[idx].hotelMakkah, hotelMadinah:document.getElementById(‘pkg_hotel_madinah’)?.value||packages[idx].hotelMadinah, departure:document.getElementById(‘pkg_departure’)?.value||packages[idx].departure, wa:document.getElementById(‘pkg_wa’)?.value||packages[idx].wa, desc:document.getElementById(‘pkg_desc’)?.value||packages[idx].desc };
+try { await getSupaClient().from(‘packages’).update({name,price:packages[idx].price,price_raw:pr}).eq(‘id’,id); } catch(e){}
+savePackagesToStorage(); closeModal(); renderPackages(getFiltered()); renderAdminPackages(); updateStats();
+toast(’”’+name+’” berhasil diperbarui \u2705’);
+}
+
+async function deletePackage(id) {
+const idx=packages.findIndex(p=>p.id===id||p.id===parseInt(id)); if(idx===-1) return;
+const nama=packages[idx].name;
+try { await getSupaClient().from(‘packages’).delete().eq(‘id’,id); } catch(e){}
+packages.splice(idx,1); savePackagesToStorage(); renderPackages(getFiltered()); renderAdminPackages(); updateStats();
+toast(’”’+nama+’” dihapus.’);
+}
+
+async function toggleAktifPaket(id) {
+const p=packages.find(x=>x.id===id||x.id===parseInt(id)); if(!p) return;
+p.aktif=!p.aktif;
+try { await getSupaClient().from(‘packages’).update({aktif:p.aktif}).eq(‘id’,id); } catch(e){}
+savePackagesToStorage(); renderPackages(getFiltered()); renderAdminPackages();
+toast(p.aktif?`"${p.name}" diaktifkan \u2705`:`"${p.name}" dinonaktifkan ⏸`, p.aktif?‘success’:‘info’);
+}
+
+function confirmDeletePaket(id) {
+const p=packages.find(x=>x.id===id||x.id===parseInt(id)); if(!p) return;
+const old=document.getElementById(’__toast_el’); if(old) old.remove();
+const t=document.createElement(‘div’); t.id=’__toast_el’;
+t.style.cssText=‘position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(27,77,62,0.96);color:white;padding:14px 18px;border-radius:14px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,0.25);min-width:260px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif’;
+t.innerHTML=`<div>\uD83D\uDDD1\uFE0F Hapus "<strong>${p.name}</strong>"?</div><div style="display:flex;gap:8px;margin-top:10px"><button onclick="deletePackage(${id});hideConfirmToast()" style="flex:1;padding:8px;border-radius:8px;background:#E74C3C;color:white;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Ya, Hapus</button><button onclick="hideConfirmToast()" style="flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);color:white;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Batal</button></div>`;
+document.body.appendChild(t);
+t._timer=setTimeout(hideConfirmToast,6000);
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRAVEL MITRA
+// ─────────────────────────────────────────────────────────────
+const travelMitras=[];
+function openTravelModal()  { document.getElementById(‘travel-modal-overlay’).style.display=‘flex’; }
+function closeTravelModal(e){ if(!e||e.target===document.getElementById(‘travel-modal-overlay’)) document.getElementById(‘travel-modal-overlay’).style.display=‘none’; }
+function saveTravelMitra() {
+const nama=document.getElementById(‘tv_nama’)?.value.trim(), ppiu=document.getElementById(‘tv_ppiu’)?.value.trim();
+if(!nama||!ppiu){toast(‘Nama travel dan PPIU wajib diisi!’,‘error’);return;}
+travelMitras.push({id:Date.now(),nama,ppiu,kota:document.getElementById(‘tv_kota’)?.value.trim()||’—’,akreditasi:document.getElementById(‘tv_akreditasi’)?.value||’—’,wa:document.getElementById(‘tv_wa’)?.value.replace(/\D/g,’’)||’’,alamat:document.getElementById(‘tv_alamat’)?.value.trim()||’—’});
+closeTravelModal(); renderAdminTravel(); updateStats();
+toast(‘Travel “’+nama+’” berhasil didaftarkan! \uD83C\uDFE2’);
+[‘tv_nama’,‘tv_ppiu’,‘tv_kota’,‘tv_wa’,‘tv_alamat’].forEach(id=>{const el=document.getElementById(id);if(el)el.value=’’;});
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN PANEL
+// ─────────────────────────────────────────────────────────────
+function renderAdminPackages() {
+const el=document.getElementById(‘admin-packages-list’); if(!el) return;
+if(!packages.length){el.innerHTML=`<div style="text-align:center;padding:50px 20px"><div style="font-size:56px;margin-bottom:12px">\uD83D\uDCE6</div><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Belum ada paket</div><button onclick="openModal()" style="background:var(--emerald);color:white;border:none;border-radius:11px;padding:12px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">+ Tambah Paket Pertama</button></div>`;return;}
+el.innerHTML=packages.map(p=>` <div style="padding:14px 20px;border-bottom:1px solid rgba(27,77,62,0.06);display:flex;align-items:center;gap:14px"> <div style="width:40px;height:40px;border-radius:10px;background:rgba(27,77,62,0.07);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${p.icon||'\uD83D\uDD4C'}</div> <div style="flex:1;min-width:0"> <div style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</div> <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.travel} · ${p.city} · ${p.cat}</div> </div> <div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--emerald)">Rp ${p.price}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">\uD83D\uDC65 ${p.slots} pax</div></div> <div style="display:flex;gap:6px"> <button onclick="toggleAktifPaket(${p.id})" style="width:28px;height:28px;border-radius:8px;border:none;cursor:pointer;font-size:13px;background:${p.aktif===false?'rgba(220,38,38,0.1)':'rgba(34,197,94,0.1)'};color:${p.aktif===false?'#DC2626':'#16A34A'}">${p.aktif===false?'⏸':'▶'}</button> <button onclick="quickEditPaket(${p.id})" style="width:28px;height:28px;border-radius:8px;border:none;cursor:pointer;font-size:13px;background:#F9FAFB">\u270F\uFE0F</button> <button onclick="confirmDeletePaket(${p.id})" style="width:28px;height:28px;border-radius:8px;border:none;cursor:pointer;font-size:13px;background:rgba(220,38,38,0.08);color:#DC2626">\uD83D\uDDD1\uFE0F</button> </div> </div>`).join(’’);
+}
+
+function renderAdminTravel() {
+const el=document.getElementById(‘admin-travel-list’); if(!el) return;
+if(!travelMitras.length){el.innerHTML=`<div style="text-align:center;padding:40px 20px"><div style="font-size:48px;margin-bottom:12px">\uD83C\uDFE2</div><div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">Belum ada mitra travel</div><button onclick="openTravelModal()" style="background:rgba(27,77,62,0.07);color:var(--emerald);border:1.5px solid rgba(27,77,62,0.12);border-radius:10px;padding:10px 20px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">Daftarkan Travel Pertama</button></div>`;return;}
+el.innerHTML=travelMitras.map(t=>`<div style="padding:14px 20px;border-bottom:1px solid rgba(27,77,62,0.06);display:flex;align-items:center;gap:14px"><div style="width:40px;height:40px;border-radius:10px;background:rgba(27,77,62,0.07);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">\uD83C\uDFE2</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">${t.nama}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${t.ppiu} · ${t.kota} · ${t.akreditasi}</div></div><span style="font-size:10px;font-weight:700;background:rgba(27,77,62,0.07);color:var(--emerald);padding:3px 10px;border-radius:6px;flex-shrink:0">\u2713 AKTIF</span></div>`).join(’’);
+}
+
+function updateStats() {
+const travels=[…new Set(packages.map(p=>p.travel))].length;
+[‘stat-paket’,‘adm-stat-paket’].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=packages.length;});
+[‘stat-travel’,‘adm-stat-travel’].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=travels||travelMitras.length;});
+const nb=document.getElementById(‘nav-badge-packages’), nbs=document.getElementById(‘nav-badge-packages-sidebar’);
+if(nb){nb.textContent=packages.length;nb.style.display=packages.length>0?’’:‘none’;}
+if(nbs){nbs.textContent=packages.length;nbs.style.display=packages.length>0?’’:‘none’;}
+const sidebarAdminBtn=document.getElementById(‘sidebar-admin-btn’);
+if(sidebarAdminBtn) sidebarAdminBtn.style.display=isMgr()?’’:‘none’;
+const btnTambah=document.getElementById(‘btn-tambah-paket’);
+if(btnTambah) btnTambah.style.display=isMgr()?’’:‘none’;
+const subTitle=document.getElementById(‘pkg-count-sub’);
+if(subTitle){subTitle.textContent=`${packages.length} paket tersedia`;subTitle.style.display=’’;}
+if(isAdmin()){
+const accs=JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’);
+const pending=accs.filter(a=>a.role===‘biro’&&a.verif_status===‘pending’).length;
+const statEl=document.getElementById(‘adm-stat-pending’), badge=document.getElementById(‘verif-badge-count’);
+if(statEl) statEl.textContent=pending;
+if(badge){badge.textContent=pending;badge.style.display=pending?’’:‘none’;}
+renderVerifBiro();
+}
+if(currentUser){
+const orders=JSON.parse(localStorage.getItem(‘pu_orders’)||’[]’).filter(o=>o.userEmail===currentUser.email);
+const docs=JSON.parse(localStorage.getItem(‘pu_doc_data’)||’{}’);
+const docCount=Object.values(docs).filter(v=>v&&v.length>0).length;
+const pe=document.getElementById(‘acct-stat-pesanan’), de=document.getElementById(‘acct-stat-dokumen’);
+if(pe) pe.textContent=orders.length;
+if(de) de.textContent=docCount;
+const ae=document.getElementById(‘adm-stat-jamaah’);
+if(ae) ae.textContent=JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’).filter(a=>a.role===‘jamaah’).length;
+}
+}
+
+// ─────────────────────────────────────────────────────────────
+// VERIFIKASI BIRO
+// ─────────────────────────────────────────────────────────────
+function renderVerifBiro() {
+const el=document.getElementById(‘admin-verif-list’); if(!el) return;
+const badge=document.getElementById(‘verif-badge-count’), statEl=document.getElementById(‘adm-stat-pending’);
+const accs=JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’);
+const pending=accs.filter(a=>a.role===‘biro’&&a.verif_status===‘pending’);
+if(badge){badge.textContent=pending.length;badge.style.display=pending.length?’’:‘none’;}
+if(statEl) statEl.textContent=pending.length;
+if(!pending.length){el.innerHTML=`<div style="text-align:center;padding:40px 20px;color:var(--muted)"><div style="font-size:40px;margin-bottom:10px">\u2705</div><div style="font-size:13px;font-weight:700">Tidak ada antrian verifikasi</div></div>`;return;}
+el.innerHTML=pending.map(b=>{
+const tgl=new Date(b.tglDaftar||Date.now()), opts={day:‘numeric’,month:‘short’,year:‘numeric’};
+return `<div style="padding:18px 20px;border-bottom:1px solid rgba(27,77,62,0.06)"> <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px"> <div><div style="font-size:14px;font-weight:800;color:var(--text)">${b.travel||b.nama}</div> <div style="font-size:11.5px;color:var(--muted);margin-top:2px">${b.nama} · ${b.email}</div> <div style="font-size:11px;color:var(--muted);margin-top:2px">\uD83D\uDCC4 ${b.ppiu||'—'} · \uD83D\uDCC5 ${tgl.toLocaleDateString('id-ID',opts)}</div></div> <span style="background:rgba(230,126,34,0.1);color:#E67E22;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap">⏳ Pending</span> </div> <div style="display:flex;gap:8px"> <button onclick="approveBiro('${b.email}')" style="flex:1;padding:11px;border-radius:10px;background:var(--emerald);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer">\u2705 Setujui</button> <button onclick="promptRejectBiro('${b.email}','${b.nama}','${(b.travel||'').replace(/'/g,"\\'")}') " style="flex:1;padding:11px;border-radius:10px;background:rgba(231,76,60,0.08);color:#E74C3C;border:1.5px solid rgba(231,76,60,0.2);font-family:'Plus Jakarta Sans',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer">\u274C Tolak</button> </div></div>`;
+}).join(’’);
+}
+
+function showDocPreview(email,type) {
+const accs=JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’);
+const biro=accs.find(a=>a.email===email); if(!biro) return;
+const src=type===‘ppiu’?biro.doc_ppiu:biro.doc_ktp; if(!src) return;
+document.getElementById(‘doc-preview-overlay’)?.remove();
+const ov=document.createElement(‘div’); ov.id=‘doc-preview-overlay’;
+ov.style.cssText=‘position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9900;display:flex;align-items:center;justify-content:center;padding:20px’;
+ov.innerHTML=`<div style="max-width:500px;width:100%;position:relative"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="color:white;font-weight:700;font-size:14px">${type==='ppiu'?'SK PPIU':'KTP'} — ${biro.travel||biro.nama}</span><button onclick="document.getElementById('doc-preview-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:16px">\u2715</button></div><img src="${src}" style="width:100%;border-radius:12px;max-height:70vh;object-fit:contain"></div>`;
+ov.onclick=e=>{ if(e.target===ov) ov.remove(); }; document.body.appendChild(ov);
+}
+
+function approveBiro(email) {
+const accs=JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’);
+const idx=accs.findIndex(a=>a.email===email); if(idx===-1) return;
+accs[idx].verif_status=‘approved’; accs[idx].verif_tgl=new Date().toISOString();
+localStorage.setItem(‘pu_accounts’,JSON.stringify(accs));
+renderVerifBiro(); renderPackages(getFiltered()); updateStats();
+toast(’\u2705 ‘+(accs[idx].travel||accs[idx].nama)+’ berhasil diverifikasi!’,‘success’);
+}
+
+function promptRejectBiro(email,nama,travel) {
+document.getElementById(‘reject-modal-overlay’)?.remove();
+const ov=document.createElement(‘div’); ov.id=‘reject-modal-overlay’;
+ov.style.cssText=‘position:fixed;inset:0;background:rgba(10,22,40,0.6);backdrop-filter:blur(4px);z-index:9800;display:flex;align-items:center;justify-content:center;padding:20px’;
+ov.innerHTML=`<div style="background:white;border-radius:20px;padding:24px;max-width:380px;width:100%"><div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">\u274C Tolak Verifikasi</div><div style="font-size:12.5px;color:var(--muted);margin-bottom:16px">Berikan alasan untuk <strong>${travel}</strong>.</div><textarea id="reject-reason" placeholder="Contoh: Nomor PPIU tidak valid..." style="width:100%;min-height:80px;padding:12px;border-radius:10px;border:1.5px solid rgba(27,77,62,0.15);font-family:'Plus Jakarta Sans',sans-serif;font-size:12.5px;resize:vertical;box-sizing:border-box;outline:none"></textarea><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><button onclick="document.getElementById('reject-modal-overlay').remove()" style="padding:11px;border-radius:10px;background:none;border:1.5px solid rgba(27,77,62,0.1);color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer">Batal</button><button onclick="rejectBiro('${email}','${travel}')" style="padding:11px;border-radius:10px;background:#E74C3C;color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer">Konfirmasi Tolak</button></div></div>`;
+ov.onclick=e=>{if(e.target===ov)ov.remove();}; document.body.appendChild(ov);
+}
+
+function rejectBiro(email,travel) {
+const reason=document.getElementById(‘reject-reason’)?.value.trim();
+if(!reason){toast(‘Alasan penolakan wajib diisi!’,‘error’);return;}
+const accs=JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’);
+const idx=accs.findIndex(a=>a.email===email); if(idx===-1) return;
+accs[idx].verif_status=‘rejected’; accs[idx].verif_note=reason; accs[idx].verif_tgl=new Date().toISOString();
+localStorage.setItem(‘pu_accounts’,JSON.stringify(accs));
+document.getElementById(‘reject-modal-overlay’)?.remove();
+renderVerifBiro(); updateStats();
+toast(‘Verifikasi ‘+travel+’ ditolak.’,‘warning’);
+}
+
+// ─────────────────────────────────────────────────────────────
+// BOOKING — ADMIN & BIRO
+// ─────────────────────────────────────────────────────────────
+async function renderAdminBookings() {
+const el=document.getElementById(‘admin-bookings-table’), countEl=document.getElementById(‘admin-booking-count’);
+const filterSts=document.getElementById(‘admin-booking-filter-status’)?.value||’’;
+if(!el) return;
+el.innerHTML=`<div style="padding:30px 20px;text-align:center;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">⏳</div><div style="font-size:12px;font-weight:700">Memuat data booking...</div></div>`;
+try {
+let query=getSupaClient().from(‘bookings’).select(’*’);
+if(filterSts) query=query.eq(‘status’,filterSts);
+const {data:bookings,error}=await query;
+if(error) throw error;
+if(countEl){countEl.textContent=bookings.length;countEl.style.display=bookings.length?’’:‘none’;}
+if(!bookings||!bookings.length){el.innerHTML=`<div style="padding:40px 20px;text-align:center;color:var(--muted)"><div style="font-size:40px;margin-bottom:10px">\uD83D\uDCCA</div><div style="font-size:13px;font-weight:700">Belum ada booking</div></div>`;return;}
+el.innerHTML=`<table style="width:100%;border-collapse:collapse;min-width:900px"><thead><tr style="background:var(--cream)">${['Kode','Jamaah','Paket','Travel','Status','Bayar','Tanggal','Aksi'].map(h=>`<th style="padding:12px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">${h}</th>`).join('')}</tr></thead><tbody>${bookings.map(b=>`
+<tr style="border-bottom:1px solid rgba(27,77,62,0.05)" onmouseenter="this.style.background='rgba(27,77,62,0.02)'" onmouseleave="this.style.background='white'">
+<td style="padding:13px 16px;font-size:11px;font-weight:700;color:var(--emerald);font-family:monospace">${b.booking_code}</td>
+<td style="padding:13px 16px"><div style="font-size:12px;font-weight:600;color:var(--text)">${b.jamaah_nama}</div><div style="font-size:10px;color:var(--muted)">${b.user_wa}</div></td>
+<td style="padding:13px 16px"><div style="font-size:12px;font-weight:600;color:var(--text)">${b.package_name}</div><div style="font-size:10px;color:var(--muted)">\uD83D\uDECF\uFE0F ${b.tipe_kamar}</div></td>
+<td style="padding:13px 16px;font-size:12px;color:var(--text)">${b.travel_nama}</td>
+<td style="padding:13px 16px">${getStatusBadge(b.status)}</td>
+<td style="padding:13px 16px">${getPaymentBadge(b.status_pembayaran)}</td>
+<td style="padding:13px 16px;font-size:11px;color:var(--muted)">${new Date(b.created_at).toLocaleDateString(‘id-ID’,{day:‘numeric’,month:‘short’,year:‘numeric’})}</td>
+<td style="padding:13px 16px"><div style="display:flex;gap:6px">
+<button onclick=”_openBD(this)” data-booking=’${JSON.stringify(b).replace(/’/g,’'’)}’ style=“padding:5px 12px;border-radius:6px;border:1px solid rgba(27,77,62,0.15);background:white;font-size:10px;font-weight:600;cursor:pointer”>\uD83D\uDC41 Detail</button>
+${b.status===‘menunggu_konfirmasi’?`<button onclick="updateBookingStatus('${b.booking_code}','dikonfirmasi')" style="padding:5px 10px;border-radius:6px;border:none;background:var(--emerald);font-size:10px;font-weight:700;cursor:pointer;color:white">\u2705 Konfirmasi</button>`:’’}
+</div></td>
+</tr>`).join('')}</tbody></table>`;
+} catch(e) {
+el.innerHTML=`<div style="padding:40px 20px;text-align:center;color:var(--muted)"><div style="font-size:40px;margin-bottom:10px">\u26A0\uFE0F</div><div style="font-size:13px;font-weight:700">Gagal memuat data</div><div style="font-size:11px;margin-top:4px">${e.message||'Periksa koneksi Supabase'}</div></div>`;
+console.error(‘renderAdminBookings:’,e);
+}
+}
+
+// FIX: updateBookingStatus terhubung ke tombol Konfirmasi
+async function updateBookingStatus(bookingCode, newStatus) {
+if(!confirm(‘Update status booking “’+bookingCode+’” menjadi ‘+newStatus+’?’)) return;
+try {
+const {error}=await getSupaClient().from(‘bookings’).update({status:newStatus,updated_at:new Date().toISOString()}).eq(‘booking_code’,bookingCode);
+if(error) throw error;
+toast(’\u2705 Status booking berhasil diupdate’,‘success’);
+renderAdminBookings(); renderBiroBookings();
+} catch(e) { toast(’\u274C Gagal update status: ‘+(e.message||’’),‘error’); console.error(‘updateBookingStatus:’,e); }
+}
+
+async function renderBiroBookings() {
+const el=document.getElementById(‘biro-bookings-table’), section=document.getElementById(‘biro-bookings-section’);
+if(!el||!currentUser) return;
+if(!isBiro()){if(section) section.style.display=‘none’;return;}
+if(section) section.style.display=‘block’;
+try {
+const {data:bookings,error}=await getSupaClient().from(‘bookings’).select(’*’).eq(‘travel_email’,currentUser.email);
+if(error) throw error;
+const countEl=document.getElementById(‘biro-booking-count’);
+if(countEl){countEl.textContent=bookings.length;countEl.style.display=bookings.length?’’:‘none’;}
+if(!bookings||!bookings.length){el.innerHTML=`<div style="padding:40px 20px;text-align:center;color:var(--muted)"><div style="font-size:40px;margin-bottom:10px">\uD83D\uDCE5</div><div style="font-size:13px;font-weight:700">Belum ada booking masuk</div></div>`;return;}
+el.innerHTML=`<table style="width:100%;border-collapse:collapse;min-width:700px"><thead><tr style="background:var(--cream)">${['Kode','Jamaah','Paket','Status','Bayar','Aksi'].map(h=>`<th style="padding:12px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">${h}</th>`).join('')}</tr></thead><tbody>${bookings.map(b=>`
+<tr style="border-bottom:1px solid rgba(27,77,62,0.05)">
+<td style="padding:13px 16px;font-size:11px;font-weight:700;color:var(--emerald);font-family:monospace">${b.booking_code}</td>
+<td style="padding:13px 16px"><div style="font-size:12px;font-weight:600;color:var(--text)">${b.jamaah_nama}</div><div style="font-size:10px;color:var(--muted)">${b.user_wa}</div></td>
+<td style="padding:13px 16px;font-size:12px;color:var(--text)">${b.package_name}</td>
+<td style="padding:13px 16px">${getStatusBadge(b.status)}</td>
+<td style="padding:13px 16px">${getPaymentBadge(b.status_pembayaran)}</td>
+<td style="padding:13px 16px"><div style="display:flex;gap:6px">
+<button onclick=”_openBD(this)” data-booking=’${JSON.stringify(b).replace(/’/g,’'’)}’ style=“padding:5px 10px;border-radius:6px;border:1px solid rgba(27,77,62,0.15);background:white;font-size:10px;font-weight:600;cursor:pointer”>\uD83D\uDC41</button>
+${b.status===‘menunggu_konfirmasi’?`<button onclick="updateBookingStatus('${b.booking_code}','dikonfirmasi')" style="padding:5px 10px;border-radius:6px;border:none;background:var(--emerald);font-size:10px;font-weight:700;cursor:pointer;color:white">\u2705</button>`:’’}
+<button onclick="window.open('https://wa.me/${b.user_wa}','_blank')" style="padding:5px 10px;border-radius:6px;border:none;background:#25D366;font-size:10px;font-weight:600;color:white;cursor:pointer">\uD83D\uDCAC</button>
+</div></td>
+</tr>`).join('')}</tbody></table>`;
+} catch(e) { el.innerHTML=`<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Gagal memuat data booking biro.</div>`; }
+}
+
+function showBookingDetailModal(booking) {
+if(typeof booking===‘string’){try{booking=JSON.parse(booking);}catch(e){return;}}
+const overlay=document.getElementById(‘booking-detail-overlay’), body=document.getElementById(‘booking-detail-body’), codeEl=document.getElementById(‘booking-detail-code’);
+if(!overlay||!body) return;
+if(codeEl) codeEl.textContent=’#’+(booking.booking_code||’—’);
+body.innerHTML=` <div style="background:var(--cream);border-radius:14px;padding:16px;margin-bottom:20px"> <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">Paket Dipilih</div> <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">${booking.package_name||'—'}</div> <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"> ${[['Travel',booking.travel_nama],['Tipe Kamar',booking.tipe_kamar],['Jadwal',booking.jadwal_keberangkatan],['Status',booking.status]].map(([k,v])=>`<div><div style="font-size:10px;color:var(--muted)">${k}</div><div style="font-size:13px;font-weight:600;color:var(--text)">${v||’—’}</div></div>`).join('')} </div> </div> <div style="margin-bottom:20px"> <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">Data Jamaah</div> <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"> ${[['Nama Lengkap',booking.jamaah_nama],['No. Paspor',booking.jamaah_paspor],['WhatsApp',booking.user_wa],['Kota Asal',booking.kota_asal]].map(([k,v])=>`<div><div style="font-size:10px;color:var(--muted)">${k}</div><div style="font-size:13px;font-weight:600;color:var(--text)">${v||’—’}</div></div>`).join('')} </div> </div> <div style="background:var(--cream);border-radius:12px;padding:14px;margin-bottom:20px"> <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px">Pembayaran</div> ${[['Harga Paket','Rp '+(booking.harga_paket||0).toLocaleString('id-ID')],['DP Dibayar','Rp '+(booking.dp_dibayar||0).toLocaleString('id-ID')],['Sisa','Rp '+(booking.sisa_pembayaran||0).toLocaleString('id-ID')]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(27,77,62,0.1)"><span style="font-size:13px;color:var(--muted)">${k}</span><span style="font-size:13px;font-weight:700;color:var(--text)">${v}</span></div>`).join('')} <div style="margin-top:8px">${getPaymentBadge(booking.status_pembayaran)}</div> </div> <div style="display:flex;gap:10px"> <button onclick="closeBookingDetail()" style="flex:1;padding:12px;border-radius:11px;border:1.5px solid rgba(27,77,62,0.12);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--text)">Tutup</button> ${booking.user_wa?`<button onclick="window.open('https://wa.me/${booking.user_wa}','_blank')" style="flex:2;padding:12px;border-radius:11px;border:none;background:linear-gradient(135deg,#25D366,#128C7E);color:white;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">\uD83D\uDCAC Chat Jamaah</button>`:''} </div>`;
+overlay.style.display=‘flex’;
+}
+
+function getStatusBadge(status) {
+const map={menunggu_konfirmasi:[‘rgba(230,126,34,0.1)’,’#E67E22’,‘⏳ Menunggu’],dikonfirmasi:[‘rgba(27,77,62,0.1)’,‘var(–emerald)’,’\u2705 Dikonfirmasi’],visa_diproses:[‘rgba(155,89,182,0.1)’,’#9B59B6’,’\uD83D\uDEC2 Visa Diproses’],siap_berangkat:[‘rgba(201,168,76,0.1)’,’#8A6C1A’,’\u2708\uFE0F Siap Berangkat’],selesai:[‘rgba(27,77,62,0.1)’,‘var(–emerald)’,’\uD83C\uDFC5 Selesai’],dibatalkan:[‘rgba(231,76,60,0.1)’,’#E74C3C’,’\u274C Dibatalkan’]};
+const s=map[status]||map[‘menunggu_konfirmasi’];
+return `<span style="background:${s[0]};color:${s[1]};font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px">${s[2]}</span>`;
+}
+function getPaymentBadge(status) {
+const map={belum_bayar:[’#E74C3C’,’\uD83D\uDD34 Belum Bayar’],dp_pending:[’#E67E22’,’\uD83D\uDFE1 DP Pending’],dp_dibayar:[’#27AE60’,’\uD83D\uDFE2 DP Dibayar’],lunas:[‘var(–emerald)’,’\u2705 Lunas’]};
+const s=map[status]||map[‘belum_bayar’];
+return `<span style="font-size:10px;font-weight:700;color:${s[0]}">${s[1]}</span>`;
+}
+
+function filterOrders(el, status) {
+document.querySelectorAll(’#page-bookings .filter-chip’).forEach(c=>c.classList.remove(‘active’));
+el.classList.add(‘active’);
+const orders=JSON.parse(localStorage.getItem(‘pu_orders’)||’[]’);
+const filtered=status===‘semua’?orders:orders.filter(o=>{
+if(status===‘pending’)   return o.status===‘menunggu_konfirmasi’||o.status===‘pending’;
+if(status===‘confirmed’) return o.status===‘dikonfirmasi’||o.status===‘confirmed’;
+if(status===‘berangkat’) return o.status===‘siap_berangkat’||o.status===‘berangkat’;
+if(status===‘selesai’)   return o.status===‘selesai’;
+return true;
+});
+renderOrderList(filtered);
+}
+
+function renderOrderList(orders) {
+const el=document.getElementById(‘orders-list’); if(!el) return;
+if(!orders||!orders.length){el.innerHTML=`<div style="text-align:center;padding:60px 20px"><div style="font-size:72px;margin-bottom:16px">\uD83D\uDD4C</div><div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Belum Ada Pesanan</div><div style="font-size:13px;color:var(--muted);line-height:1.65;max-width:300px;margin:0 auto 24px">Pesanan umroh Anda akan muncul di sini.</div><button onclick="showPage('packages',null,'bn-packages')" style="background:var(--emerald);color:white;border:none;border-radius:12px;padding:13px 28px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">\uD83D\uDD0D Lihat Paket Umroh</button></div>`;return;}
+el.innerHTML=orders.map(o=>` <div style="background:white;border-radius:16px;padding:18px;box-shadow:var(--card-shadow);border:1px solid rgba(27,77,62,0.07)"> <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px"> <div><div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:4px">#${o.id||o.booking_code||'—'}</div> <div style="font-size:14px;font-weight:700;color:var(--text)">${o.paket||o.package_name||'—'}</div> <div style="font-size:12px;color:var(--muted);margin-top:2px">\uD83C\uDFE2 ${o.travel||o.travel_nama||'—'} · \uD83D\uDCC5 ${o.tgl||'—'}</div></div> ${getStatusBadge(o.status||'menunggu_konfirmasi')} </div> <div style="display:flex;gap:10px;margin-top:10px"> <button onclick="showBookingDetail('${o.id||o.booking_code||''}')" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid rgba(27,77,62,0.12);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--text)">Detail</button> ${o.wa||o.travel_wa?`<button onclick="window.open('https://wa.me/${o.wa||o.travel_wa}','_blank')" style="flex:2;padding:9px;border-radius:9px;border:none;background:#25D366;color:white;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">\uD83D\uDCAC Chat Travel</button>`:''} </div> </div>`).join(’’);
+}
+
+function showBookingDetail(id) { const overlay=document.getElementById(‘booking-detail-overlay’); if(overlay) overlay.style.display=‘flex’; }
+function closeBookingDetail(e) { if(!e||e.target===document.getElementById(‘booking-detail-overlay’)) document.getElementById(‘booking-detail-overlay’).style.display=‘none’; }
+function filterNotif(el,cat) { document.querySelectorAll(’#page-reports .filter-chip’).forEach(c=>c.classList.remove(‘active’)); el.classList.add(‘active’); }
+function markAllRead() { document.querySelectorAll(’.notif-item[data-read=“false”]’).forEach(el=>{el.dataset.read=‘true’;}); const badge=document.getElementById(‘notif-badge’);if(badge)badge.style.display=‘none’; toast(‘Semua notifikasi dibaca’); }
+
+// ─────────────────────────────────────────────────────────────
+// AUTH — DEMO ACCOUNTS
+// ─────────────────────────────────────────────────────────────
+const DEMO_ACCOUNTS = [
+{ email:‘jamaah@demo.id’, pass:‘demo123’, role:‘jamaah’, nama:‘Hj. Siti Aminah’,   wa:‘08123456789’, inisial:‘SA’ },
+{ email:‘biro@demo.id’,   pass:‘demo123’, role:‘biro’,   nama:‘Arofahmina Travel’, wa:‘08113456789’, inisial:‘AT’, travel:‘Arofahmina Travel’, ppiu:‘No. 8120/2022’ },
+{ email:‘admin@demo.id’,  pass:‘admin999’,role:‘admin’,  nama:‘Super Admin’,       wa:’’,            inisial:‘SA’ },
+];
+
+let currentUser = (() => { try { return JSON.parse(localStorage.getItem(‘pu_current_user’)||‘null’); } catch(e){ return null; } })();
+let selectedRole=‘jamaah’, selectedRoleReg=‘jamaah’;
+
+// ─────────────────────────────────────────────────────────────
+// LOGIN — pakai Supabase Auth resmi
+// ─────────────────────────────────────────────────────────────
+async function doLogin() {
+const email=document.getElementById(‘login_email’)?.value.trim().toLowerCase();
+const pass=document.getElementById(‘login_pass’)?.value;
+if(!email||!pass){toast(‘Email dan password wajib diisi!’,‘error’);return;}
+
+// Cek demo accounts dulu
+const allAccs=[…DEMO_ACCOUNTS,…JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’)];
+const demo=allAccs.find(a=>a.email===email&&a.pass===pass);
+if(demo){
+currentUser={…demo};
+localStorage.setItem(‘pu_current_user’,JSON.stringify(currentUser));
+applyUserSession(); updateSidebarUser(); syncAccountPopup(); syncAccountBtn(); syncHbDrawer();
+closeSettingsFloating(); toast(‘Selamat datang, ‘+demo.nama+’! \uD83D\uDD4C’); return;
+}
+
+// Login via Supabase Auth resmi
+toast(‘Sedang masuk…’,‘info’);
+try {
+const {data,error}=await getSupaClient().auth.signInWithPassword({email,password:pass});
+if(error){
+const pesanError={‘Invalid login credentials’:‘Email atau password salah!’,‘Email not confirmed’:‘Email belum dikonfirmasi. Cek inbox Anda.’,‘Too many requests’:‘Terlalu banyak percobaan. Tunggu beberapa menit.’};
+toast(pesanError[error.message]||error.message,‘error’); return;
+}
+const {data:profile}=await getSupaClient().from(‘profiles’).select(’*’).eq(‘User_id’,data.user.id).single();
+const inisial=(profile?.nama||email).trim().split(’ ‘).map(w=>w[0]).join(’’).toUpperCase().slice(0,2);
+currentUser={supabase_id:data.user.id,email:data.user.email,nama:profile?.nama||email.split(’@’)[0],role:profile?.role||‘jamaah’,wa:profile?.wa||’’,inisial:profile?.inisial||inisial,travel:profile?.travel||’’,ppiu:profile?.ppiu||’’,verif_status:profile?.verif_status||‘approved’};
+localStorage.setItem(‘pu_current_user’,JSON.stringify(currentUser));
+applyUserSession(); updateSidebarUser(); syncAccountPopup(); syncAccountBtn(); syncHbDrawer();
+closeSettingsFloating(); toast(‘Selamat datang, ‘+currentUser.nama+’! \uD83D\uDD4C’);
+} catch(e){toast(‘Gagal terhubung ke server.’,‘error’);console.error(‘doLogin error:’,e);}
+}
+
+// ─────────────────────────────────────────────────────────────
+// REGISTER — pakai Supabase Auth resmi
+// ─────────────────────────────────────────────────────────────
+async function doRegister() {
+const nama=document.getElementById(‘reg_nama’)?.value.trim();
+const email=document.getElementById(‘reg_email’)?.value.trim().toLowerCase();
+const pass=document.getElementById(‘reg_pass’)?.value;
+const role=selectedRoleReg||‘jamaah’;
+if(!nama||!email||!pass){toast(‘Semua field wajib diisi!’,‘error’);return;}
+if(pass.length<8){toast(‘Password minimal 8 karakter’,‘error’);return;}
+if(!/^[^\s@]+@[^\s@]+.[^\s@]+$/.test(email)){toast(‘Format email tidak valid’,‘error’);return;}
+
+toast(‘Membuat akun…’,‘info’);
+try {
+const {data,error}=await getSupaClient().auth.signUp({email,password:pass,options:{data:{nama,role}}});
+if(error){toast(error.message,‘error’);return;}
+const inisial=nama.trim().split(’ ‘).map(w=>w[0]).join(’’).toUpperCase().slice(0,2);
+
+```
+// Simpan ke tabel profiles — pakai "User_id" (kapital sesuai database)
+await getSupaClient().from('profiles').insert({
+  'User_id':data.user.id, email, nama, role, inisial,
+  wa:document.getElementById('reg_wa')?.value.trim()||'',
+  travel:document.getElementById('reg_travel')?.value.trim()||'',
+  ppiu:document.getElementById('reg_ppiu')?.value.trim()||'',
+  verif_status:role==='biro'?'pending':'approved',
+});
+
+if(role==='biro'){
+  await getSupaClient().from('biro_verif').insert({
+    email, nama,
+    travel:document.getElementById('reg_travel')?.value.trim()||'',
+    ppiu:document.getElementById('reg_ppiu')?.value.trim()||'',
+    alamat:document.getElementById('reg_alamat')?.value.trim()||'',
+    wa:document.getElementById('reg_wa')?.value.trim()||'',
+    status:'pending',
+  });
+  const accs=JSON.parse(localStorage.getItem('pu_accounts')||'[]');
+  accs.push({email,nama,role,inisial,verif_status:'pending',travel:document.getElementById('reg_travel')?.value.trim()||'',ppiu:document.getElementById('reg_ppiu')?.value.trim()||'',tglDaftar:new Date().toISOString()});
+  localStorage.setItem('pu_accounts',JSON.stringify(accs));
+  closeSettingsFloating(); showBiroWaitingScreen({email,nama}); return;
+}
+toast('Akun dibuat! Cek email untuk konfirmasi. \uD83D\uDCE7','info'); closeSettingsFloating();
+```
+
+} catch(e){toast(‘Gagal membuat akun.’,‘error’);console.error(‘doRegister error:’,e);}
+}
+
+// ─────────────────────────────────────────────────────────────
+// LOGOUT — pakai Supabase Auth resmi
+// ─────────────────────────────────────────────────────────────
+async function doLogout() {
+try { await getSupaClient().auth.signOut(); } catch(e){}
+currentUser=null; localStorage.removeItem(‘pu_current_user’);
+applyUserSession(); updateSidebarUser(); syncAccountPopup(); syncAccountBtn(); syncHbDrawer();
+showPage(‘dashboard’,null,‘bn-dashboard’); toast(‘Berhasil keluar \uD83D\uDC4B’,‘info’);
+}
+
+function applyUserSession() {
+const mgr=isMgr();
+const sidebarAdminBtn=document.getElementById(‘sidebar-admin-btn’);
+if(sidebarAdminBtn) sidebarAdminBtn.style.display=mgr?’’:‘none’;
+const hbAdminSec=document.getElementById(‘hb-admin-section’);
+if(hbAdminSec) hbAdminSec.style.display=mgr?‘block’:‘none’;
+const hbLogoutSec=document.getElementById(‘hb-logout-section’);
+if(hbLogoutSec) hbLogoutSec.style.display=currentUser?‘block’:‘none’;
+const hbAuthBtn=document.getElementById(‘hb-auth-btn’);
+if(hbAuthBtn) hbAuthBtn.style.display=currentUser?‘none’:‘block’;
+updateStats();
+}
+
+function updateSidebarUser() {
+const nameEl=document.getElementById(‘sidebar-user-name’), roleEl=document.getElementById(‘sidebar-user-role’), avEl=document.getElementById(‘sidebar-user-av’);
+if(!currentUser){if(nameEl)nameEl.textContent=‘Tamu’;if(roleEl)roleEl.textContent=‘Belum masuk’;if(avEl)avEl.textContent=’?’;return;}
+if(nameEl) nameEl.textContent=currentUser.nama;
+if(roleEl) roleEl.textContent=ROLE_LABELS_SHORT[currentUser.role]||currentUser.role;
+if(avEl)   avEl.textContent=currentUser.inisial||’?’;
+}
+
+// ─────────────────────────────────────────────────────────────
+// ACCOUNT POPUP
+// ─────────────────────────────────────────────────────────────
+let acctPopupOpen=false;
+function toggleAccountPopup() { acctPopupOpen?closeAccountPopup():openAccountPopup(); }
+function openAccountPopup() {
+const popup=document.getElementById(‘acct-popup’), bd=document.getElementById(‘acct-backdrop’);
+if(popup){popup.style.display=‘block’;bd.style.display=‘block’;requestAnimationFrame(()=>{popup.style.transform=‘translateY(0) scale(1)’;popup.style.opacity=‘1’;});}
+acctPopupOpen=true; syncAccountPopup();
+}
+function closeAccountPopup() {
+const popup=document.getElementById(‘acct-popup’), bd=document.getElementById(‘acct-backdrop’);
+if(popup){popup.style.transform=‘translateY(-8px) scale(0.96)’;popup.style.opacity=‘0’;setTimeout(()=>{popup.style.display=‘none’;bd.style.display=‘none’;},200);}
+acctPopupOpen=false;
+}
+function syncAccountPopup() {
+const rl=ROLE_LABELS;
+const guest=document.getElementById(‘acct-popup-guest’), loggedin=document.getElementById(‘acct-popup-loggedin’);
+if(!currentUser){if(guest)guest.style.display=‘block’;if(loggedin)loggedin.style.display=‘none’;return;}
+if(guest) guest.style.display=‘none’; if(loggedin) loggedin.style.display=‘block’;
+const av=document.getElementById(‘acct-popup-avatar’), nama=document.getElementById(‘acct-popup-nama’), role=document.getElementById(‘acct-popup-role’);
+if(av)   av.textContent=currentUser.inisial||’?’;
+if(nama) nama.textContent=currentUser.nama;
+if(role) role.textContent=rl[currentUser.role]||currentUser.role;
+const orders=JSON.parse(localStorage.getItem(‘pu_orders’)||’[]’).filter(o=>o.userEmail===currentUser.email);
+const docs=JSON.parse(localStorage.getItem(‘pu_doc_data’)||’{}’);
+const docCount=Object.values(docs).filter(v=>v&&v.length>0).length;
+const pe=document.getElementById(‘acct-stat-pesanan’), de=document.getElementById(‘acct-stat-dokumen’);
+if(pe) pe.textContent=orders.length; if(de) de.textContent=docCount;
+}
+function syncAccountBtn() {
+const btnIni=document.getElementById(‘acct-btn-inisial’), dot=document.getElementById(‘acct-online-dot’);
+if(currentUser){if(btnIni)btnIni.textContent=currentUser.inisial||’?’;if(dot)dot.style.display=‘block’;}
+else{if(btnIni)btnIni.textContent=’?’;if(dot)dot.style.display=‘none’;}
+}
+function acctGo(pageId,bnId){closeAccountPopup();setTimeout(()=>showPage(pageId,null,bnId),200);}
+function acctGoSettings(section){closeAccountPopup();setTimeout(()=>{openSettingsFloating();setTimeout(()=>openSettingsSubPanel(section),120);},200);}
+function acctGoLogin()   {closeAccountPopup();setTimeout(()=>{openSettingsFloating();setTimeout(()=>openSettingsSubPanel(‘akun’),80);},220);}
+function acctGoRegister(){closeAccountPopup();setTimeout(()=>{openSettingsFloating();setTimeout(()=>{openSettingsSubPanel(‘akun’);setTimeout(()=>reRenderLogin(‘register’),60);},80);},220);}
+function acctGoPartner() {
+closeAccountPopup();
+setTimeout(()=>{openSettingsFloating();setTimeout(()=>{openSettingsSubPanel(‘akun’);setTimeout(()=>{reRenderLogin(‘register’);setTimeout(()=>{const biroCard=document.querySelector(’#reg-role-picker [data-role=“biro”]’);if(biroCard)pickRole(biroCard,‘biro’,‘reg’);},80);},60);},80);},220);
+}
+
+// ─────────────────────────────────────────────────────────────
+// HAMBURGER DRAWER
+// ─────────────────────────────────────────────────────────────
+let hbIsOpen=false;
+function toggleHamburger(){hbIsOpen?closeHamburger():openHamburger();}
+function openHamburger() {
+const drawer=document.getElementById(‘hb-drawer’), backdrop=document.getElementById(‘hb-backdrop’), lines=document.getElementById(‘hb-lines-bottom’);
+if(drawer) drawer.classList.add(‘open’); if(backdrop) backdrop.classList.add(‘open’); if(lines) lines.classList.add(‘is-open’);
+hbIsOpen=true; syncHbDrawer();
+}
+function closeHamburger() {
+const drawer=document.getElementById(‘hb-drawer’), backdrop=document.getElementById(‘hb-backdrop’), lines=document.getElementById(‘hb-lines-bottom’);
+if(drawer) drawer.classList.remove(‘open’); if(backdrop) backdrop.classList.remove(‘open’); if(lines) lines.classList.remove(‘is-open’);
+hbIsOpen=false;
+}
+function syncHbDrawer() {
+const rl=ROLE_LABELS;
+const nameEl=document.getElementById(‘hb-user-name’), roleEl=document.getElementById(‘hb-user-role’), avEl=document.getElementById(‘hb-avatar’);
+const adminSec=document.getElementById(‘hb-admin-section’), logoutSec=document.getElementById(‘hb-logout-section’), authBtn=document.getElementById(‘hb-auth-btn’);
+if(!currentUser){if(nameEl)nameEl.textContent=‘Tamu’;if(roleEl)roleEl.textContent=‘Belum masuk akun’;if(avEl)avEl.textContent=’?’;if(adminSec)adminSec.style.display=‘none’;if(logoutSec)logoutSec.style.display=‘none’;if(authBtn)authBtn.style.display=‘block’;return;}
+if(nameEl) nameEl.textContent=currentUser.nama;
+if(roleEl) roleEl.textContent=rl[currentUser.role]||currentUser.role;
+if(avEl)   avEl.textContent=currentUser.inisial||’?’;
+if(adminSec)  adminSec.style.display=(currentUser.role===‘biro’||currentUser.role===‘admin’)?‘block’:‘none’;
+if(logoutSec) logoutSec.style.display=‘block’;
+if(authBtn)   authBtn.style.display=‘none’;
+}
+function hbGo(pageId,bnId){closeHamburger();setTimeout(()=>showPage(pageId,null,bnId),220);}
+function hbGoAkun(){closeHamburger();setTimeout(()=>{openSettingsFloating();setTimeout(()=>openSettingsSubPanel(‘akun’),100);},220);}
+function hbGoSettings(section){closeHamburger();setTimeout(()=>{openSettingsFloating();setTimeout(()=>openSettingsSubPanel(section),100);},220);}
+function hbGoPartner() {
+closeHamburger();
+setTimeout(()=>{openSettingsFloating();setTimeout(()=>{openSettingsSubPanel(‘akun’);setTimeout(()=>{reRenderLogin(‘register’);setTimeout(()=>{const biroCard=document.querySelector(’#reg-role-picker [data-role=“biro”]’);if(biroCard)pickRole(biroCard,‘biro’,‘reg’);},80);},80);},100);},220);
+}
+
+// ─────────────────────────────────────────────────────────────
+// FLOATING SETTINGS PANEL
+// ─────────────────────────────────────────────────────────────
+function openSettingsFloating() {
+const panel=document.getElementById(‘fs-panel’), bd=document.getElementById(‘fs-backdrop’);
+if(panel){panel.style.display=‘block’;bd.style.display=‘block’;requestAnimationFrame(()=>panel.style.transform=‘translateY(0)’);}
+syncFsUserCard();
+}
+function closeSettingsFloating() {
+const panel=document.getElementById(‘fs-panel’), bd=document.getElementById(‘fs-backdrop’);
+if(panel){panel.style.transform=‘translateY(100%)’;setTimeout(()=>{panel.style.display=‘none’;bd.style.display=‘none’;},320);}
+closeSettingsSubPanel();
+}
+function openSettingsSubPanel(id) {
+const main=document.getElementById(‘fs-main-menu’), sub=document.getElementById(‘fs-sub-panel’), content=document.getElementById(‘fs-sub-content’);
+const backBtn=document.getElementById(‘fs-back-btn’), title=document.getElementById(‘fs-title’);
+if(main) main.style.display=‘none’; if(sub) sub.style.display=‘block’;
+if(backBtn){backBtn.style.display=‘flex’;}
+const titles={akun:‘Masuk / Daftar’,profil:‘Profil Saya’,dokumen:‘Dokumen Saya’,keamanan:‘Keamanan’,notif:‘Notifikasi’,tampilan:‘Bahasa & Tampilan’,bantuan:‘Bantuan & CS’,tentang:‘Tentang & Legal’};
+if(title) title.textContent=titles[id]||id;
+const builders={profil:buildProfileHTML,dokumen:buildDokumenHTML,keamanan:buildKeamananHTML,notif:buildNotifHTML,tampilan:buildTampilanHTML,bantuan:buildBantuanHTML,tentang:buildTentangHTML};
+if(id===‘akun’) { if(content) content.innerHTML=buildLoginHTML(‘login’); }
+else if(builders[id]) { if(content) content.innerHTML=builders[id](); }
+}
+function closeSettingsSubPanel() {
+const main=document.getElementById(‘fs-main-menu’), sub=document.getElementById(‘fs-sub-panel’);
+const backBtn=document.getElementById(‘fs-back-btn’), title=document.getElementById(‘fs-title’);
+if(main) main.style.display=‘block’; if(sub) sub.style.display=‘none’;
+if(backBtn) backBtn.style.display=‘none’; if(title) title.textContent=‘Pengaturan’;
+syncFsUserCard();
+}
+function syncFsUserCard() {
+const rl=ROLE_LABELS;
+const card=document.getElementById(‘fs-user-card’), guestMenu=document.getElementById(‘fs-menu-akun-guest’);
+const loggedMenu=document.getElementById(‘fs-menu-loggedin’), logoutMenu=document.getElementById(‘fs-menu-logout’);
+if(!currentUser){if(card)card.style.display=‘none’;if(guestMenu)guestMenu.style.display=‘block’;if(loggedMenu)loggedMenu.style.display=‘none’;if(logoutMenu)logoutMenu.style.display=‘none’;return;}
+if(card)card.style.display=‘flex’; if(guestMenu)guestMenu.style.display=‘none’; if(loggedMenu)loggedMenu.style.display=‘block’; if(logoutMenu)logoutMenu.style.display=‘block’;
+const avEl=document.getElementById(‘fs-uc-avatar’), naEl=document.getElementById(‘fs-uc-nama’), roEl=document.getElementById(‘fs-uc-role’);
+if(avEl) avEl.textContent=currentUser.inisial||’?’;
+if(naEl) naEl.textContent=currentUser.nama;
+if(roEl) roEl.textContent=rl[currentUser.role]||currentUser.role;
+}
+function renderAkunPanel() { const t=document.getElementById(‘fs-sub-content’); if(t) t.innerHTML=buildLoginHTML(‘login’); }
+function buildLoginHTML(tab) { return tab===‘login’?buildFormLogin():buildFormRegister(); }
+function buildFormLogin() {
+return `<div style="padding:4px 0">
+<div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">Masuk untuk melihat pesanan, dokumen, dan menghubungi travel.</div>
+<div style="margin-bottom:12px"><label class="pf-label">Email</label><input id="login_email" class="form-input" type="email" placeholder="email@anda.com" style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')doLogin()"></div>
+<div style="margin-bottom:16px;position:relative"><label class="pf-label">Password</label><input id="login_pass" class="form-input" type="password" placeholder="••••••••" style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')doLogin()"><button onclick="togglePass('login_pass')" style="position:absolute;right:12px;bottom:10px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted)">\uD83D\uDC41</button></div>
+<button onclick="doLogin()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--emerald),#2D6A56);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">\uD83D\uDD10 Masuk Sekarang</button>
+<div style="text-align:center;margin-top:14px;font-size:12px;color:var(--muted)">Belum punya akun? <button onclick="reRenderLogin('register')" style="background:none;border:none;color:var(--emerald);font-weight:700;cursor:pointer;font-family:inherit;font-size:inherit">Daftar →</button></div>
+
+  </div>`;
+}
+function buildFormRegister() {
+  return `<div style="padding:4px 0">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Buat akun baru untuk memesan paket umroh.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px" id="reg-role-picker">
+      <button data-role="jamaah" onclick="pickRole(this,'jamaah','reg')" style="padding:12px 8px;border-radius:12px;border:2px solid var(--emerald);background:rgba(27,77,62,0.08);font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;text-align:center;color:var(--emerald)">\uD83E\uDDD5 Jamaah</button>
+      <button data-role="biro" onclick="pickRole(this,'biro','reg')" style="padding:12px 8px;border-radius:12px;border:2px solid rgba(27,77,62,0.15);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;text-align:center;color:var(--muted)">\uD83C\uDFE2 Biro Travel</button>
+    </div>
+    <div style="margin-bottom:10px"><label class="pf-label">Nama Lengkap *</label><input id="reg_nama" class="form-input" type="text" placeholder="Nama sesuai KTP" style="width:100%;box-sizing:border-box"></div>
+    <div style="margin-bottom:10px"><label class="pf-label">Email *</label><input id="reg_email" class="form-input" type="email" placeholder="email@anda.com" style="width:100%;box-sizing:border-box"></div>
+    <div style="margin-bottom:10px;position:relative"><label class="pf-label">Password * (min. 8 karakter)</label><input id="reg_pass" class="form-input" type="password" placeholder="••••••••" style="width:100%;box-sizing:border-box"><button onclick="togglePass('reg_pass')" style="position:absolute;right:12px;bottom:10px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted)">\uD83D\uDC41</button></div>
+    <div style="margin-bottom:10px"><label class="pf-label">No. WhatsApp</label><input id="reg_wa" class="form-input" type="tel" placeholder="08xxxxxxxxxx" style="width:100%;box-sizing:border-box"></div>
+    <div id="reg-biro-fields" style="display:none">
+      <div style="background:rgba(27,77,62,0.04);border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid var(--emerald)">
+        <div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:8px">\uD83D\uDCCB Data Biro Travel</div>
+        <div style="margin-bottom:8px"><label class="pf-label">Nama Travel</label><input id="reg_travel" class="form-input" type="text" placeholder="PT Nama Travel" style="width:100%;box-sizing:border-box"></div>
+        <div style="margin-bottom:8px"><label class="pf-label">No. PPIU Kemenag</label><input id="reg_ppiu" class="form-input" type="text" placeholder="No. U.280/2021" style="width:100%;box-sizing:border-box"></div>
+        <div><label class="pf-label">Alamat Kantor</label><input id="reg_alamat" class="form-input" type="text" placeholder="Jl. ..." style="width:100%;box-sizing:border-box"></div>
+      </div>
+    </div>
+    <button onclick="doRegister()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--emerald),#2D6A56);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">\u2705 Buat Akun</button>
+    <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--muted)">Sudah punya akun? <button onclick="reRenderLogin('login')" style="background:none;border:none;color:var(--emerald);font-weight:700;cursor:pointer;font-family:inherit;font-size:inherit">Masuk →</button></div>
+  </div>`;
+}
+function reRenderLogin(tab){const t=document.getElementById('fs-sub-content');if(t)t.innerHTML=buildLoginHTML(tab);}
+function pickRole(el,role,prefix){
+  selectedRoleReg=role;
+  document.querySelectorAll(`#reg-role-picker button`).forEach(b=>{b.style.borderColor='rgba(27,77,62,0.15)';b.style.background='none';b.style.color='var(--muted)';});
+  el.style.borderColor='var(--emerald)';el.style.background='rgba(27,77,62,0.08)';el.style.color='var(--emerald)';
+  const biroFields=document.getElementById('reg-biro-fields');
+  if(biroFields) biroFields.style.display=role==='biro'?'block':'none';
+}
+function togglePass(id){const el=document.getElementById(id);if(el)el.type=el.type==='password'?'text':'password';}
+function previewRegDoc(input,previewId,b64Id){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{const b64=e.target.result;const prev=document.getElementById(previewId);if(prev)prev.innerHTML=`<img src="${b64}" style="max-width:100%;border-radius:8px;margin-top:6px">`;const b64El=document.getElementById(b64Id);if(b64El)b64El.value=b64;};
+  reader.readAsDataURL(file);
+}
+
+function buildProfileHTML() {
+if(!currentUser) return ‘<div style="padding:20px;text-align:center;color:var(--muted)">Silakan login terlebih dahulu</div>’;
+return `<div style="padding:4px 0">
+<div style="margin-bottom:12px"><label class="pf-label">Nama Lengkap</label><input id="prof_nama" class="form-input" type="text" value="${currentUser.nama||''}" style="width:100%;box-sizing:border-box"></div>
+<div style="margin-bottom:12px"><label class="pf-label">Email</label><input class="form-input" type="email" value="${currentUser.email||''}" readonly style="width:100%;box-sizing:border-box;background:rgba(27,77,62,0.04);color:var(--muted)"></div>
+<div style="margin-bottom:12px"><label class="pf-label">No. WhatsApp</label><input id="prof_wa" class="form-input" type="tel" value="${currentUser.wa||''}" style="width:100%;box-sizing:border-box"></div>
+<button onclick="saveProfil()" style="width:100%;padding:13px;border-radius:12px;background:var(--emerald);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">\uD83D\uDCBE Simpan Profil</button>
+
+  </div>`;
+}
+function buildDokumenHTML() {
+  const docs=JSON.parse(localStorage.getItem('pu_doc_data')||'{}');
+  return `<div style="padding:4px 0"><div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">Simpan dokumen penting Anda secara lokal.</div>
+    ${[['Nomor Paspor','doc_paspor_no','Contoh: B1234567'],['Masa Berlaku Paspor','doc_paspor_exp','Contoh: 2029-12-31'],['Nomor KTP','doc_ktp_no','Contoh: 3578xxxxxxxxxxxx']].map(([lbl,id,ph])=>`<div style="margin-bottom:10px"><label class="pf-label">${lbl}</label><input id="${id}" class="form-input" type="text" placeholder="${ph}" value="${docs[id]||''}" style="width:100%;box-sizing:border-box"></div>`).join('')}
+    <button onclick="saveDokumen()" style="width:100%;padding:13px;border-radius:12px;background:var(--emerald);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">\uD83D\uDCBE Simpan Dokumen</button>
+  </div>`;
+}
+function buildNotifHTML() {
+  const prefs=JSON.parse(localStorage.getItem('pu_notif_prefs')||'{}');
+  const mkToggle=(id,label,sub,def)=>{
+    const checked=prefs[id]!==undefined?prefs[id]:def;
+    return `<label style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid rgba(27,77,62,0.07);cursor:pointer"><div><div style="font-size:13.5px;font-weight:600;color:var(--text)">${label}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${sub}</div></div><input type="checkbox" ${checked?'checked':''} onchange="saveNotifPref('${id}',this.checked)" style="width:18px;height:18px;accent-color:var(--emerald);cursor:pointer"></label>`;
+  };
+  return `<div style="padding:4px 0">
+    ${mkToggle('pesanan','Notifikasi Pesanan','Status update booking dan konfirmasi',true)}
+    ${mkToggle('pembayaran','Notifikasi Pembayaran','Reminder DP dan pelunasan',true)}
+    ${mkToggle('dokumen','Notifikasi Dokumen','Kelengkapan dokumen jamaah',true)}
+    ${mkToggle('promo','Notifikasi Promo','Paket terbaru dan penawaran spesial',false)}
+  </div>`;
+}
+function buildKeamananHTML() { return `<div style="padding:4px 0"><div style="font-size:13px;color:var(--muted);line-height:1.65">Untuk mengubah password, gunakan fitur lupa password di halaman login atau hubungi admin.</div></div>`; }
+function buildTampilanHTML() { return `<div style="padding:4px 0"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Tema Warna</div>${[['light','\u2600\uFE0F Terang'],['dark','\uD83C\uDF19 Gelap'],['auto','\uD83D\uDD04 Otomatis']].map(([val,lbl])=>`<button onclick="setTema('${val}')" style="width:100%;padding:13px 16px;border-radius:12px;border:1.5px solid rgba(27,77,62,0.12);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;color:var(--text);margin-bottom:8px">${lbl}</button>`).join('')}</div>`; }
+function buildBantuanHTML() { return `<div style="padding:4px 0"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Hubungi Kami</div><button onclick="window.open('https://wa.me/6281234567890','_blank')" style="width:100%;padding:14px;border-radius:12px;background:#25D366;color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer;margin-bottom:10px">\uD83D\uDCAC WhatsApp Support</button><div style="font-size:12px;color:var(--muted);text-align:center">Senin – Jumat, 08.00 – 17.00 WIB</div></div>`; }
+function buildTentangHTML() { return `<div style="padding:4px 0"><div style="text-align:center;margin-bottom:16px"><div style="font-size:40px;margin-bottom:8px">\uD83D\uDD4C</div><div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--emerald)">PilihUmroh.id</div><div style="font-size:12px;color:var(--muted);margin-top:4px">Platform Marketplace Umroh Terpercaya</div></div><div style="font-size:12px;color:var(--muted);line-height:1.8">© 2025 PilihUmroh.id<br>Versi 1.0.0<br><br>Semua mitra travel terverifikasi PPIU Kemenag RI.</div></div>`; }
+function saveProfil() { const d={nama:document.getElementById('prof_nama')?.value.trim(),wa:document.getElementById('prof_wa')?.value.trim()}; if(currentUser){currentUser.nama=d.nama;currentUser.inisial=d.nama.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);if(d.wa)currentUser.wa=d.wa;localStorage.setItem('pu_current_user',JSON.stringify(currentUser));updateSidebarUser();syncAccountPopup();syncAccountBtn();syncHbDrawer();toast('Profil disimpan \u2705');} }
+function saveDokumen() { const ids=['doc_paspor_no','doc_paspor_exp','doc_ktp_no']; const docs=JSON.parse(localStorage.getItem('pu_doc_data')||'{}'); ids.forEach(id=>{const el=document.getElementById(id);if(el&&el.value.trim())docs[id]=el.value.trim();}); localStorage.setItem('pu_doc_data',JSON.stringify(docs)); toast('Dokumen disimpan \u2705'); }
+function saveNotifPref(id,val){const prefs=JSON.parse(localStorage.getItem('pu_notif_prefs')||'{}');prefs[id]=val;localStorage.setItem('pu_notif_prefs',JSON.stringify(prefs));toast(val?'Notifikasi diaktifkan':'Notifikasi dinonaktifkan','info');}
+function setTema(val){localStorage.setItem('pu_tema',val);openSettingsSubPanel('tampilan');toast('Tema '+val+' dipilih','info');}
+
+// ─────────────────────────────────────────────────────────────
+// BIRO WAITING & REJECTED SCREENS
+// ─────────────────────────────────────────────────────────────
+function showBiroWaitingScreen(user) {
+document.querySelectorAll(’.page’).forEach(p=>p.classList.remove(‘active’));
+const pg=document.getElementById(‘page-dashboard’); if(pg) pg.classList.add(‘active’);
+const grid=document.getElementById(‘packages-grid’); if(!grid) return;
+grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px 20px;background:white;border-radius:20px;box-shadow:var(--card-shadow)">
+<div style="font-size:64px;margin-bottom:16px">⏳</div>
+<div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:var(--emerald);margin-bottom:10px">Menunggu Verifikasi Admin</div>
+<div style="font-size:13.5px;color:var(--muted);max-width:380px;margin:0 auto 20px;line-height:1.7">Akun biro Anda sedang dalam proses verifikasi. Tim admin akan menghubungi Anda dalam 1×24 jam.</div>
+<div style="background:rgba(27,77,62,0.06);border-radius:12px;padding:14px 20px;display:inline-block;text-align:left;margin-bottom:20px">
+<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">INFORMASI PENDAFTARAN</div>
+<div style="font-size:13px;color:var(--text)"><strong>${user.nama}</strong></div>
+<div style="font-size:12px;color:var(--muted)">${user.email}</div>
+</div>
+<div style="font-size:12px;color:var(--muted)">Pertanyaan? <a href="https://wa.me/6281234567890" target="_blank" style="color:var(--emerald);font-weight:700">Hubungi Admin</a></div>
+
+  </div>`;
+}
+function showBiroRejectedScreen(user) {
+  const grid=document.getElementById('packages-grid'); if(!grid) return;
+  grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px 20px;background:white;border-radius:20px;box-shadow:var(--card-shadow)">
+    <div style="font-size:64px;margin-bottom:16px">\u274C</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:#E74C3C;margin-bottom:10px">Verifikasi Ditolak</div>
+    <div style="font-size:13.5px;color:var(--muted);max-width:380px;margin:0 auto 20px;line-height:1.7">${user.verif_note||'Silakan hubungi admin untuk informasi lebih lanjut.'}</div>
+    <div style="font-size:12px;color:var(--muted)">Pertanyaan? <a href="https://wa.me/6281234567890" target="_blank" style="color:var(--emerald);font-weight:700">Hubungi Admin</a></div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN PORTAL (hidden — Ctrl+Shift+A / 5x tap logo)
+// ─────────────────────────────────────────────────────────────
+let _tapCount=0, _tapTimer=null;
+function handleLogoTap() {
+_tapCount++; clearTimeout(_tapTimer); renderTapDots(_tapCount);
+_tapTimer=setTimeout(()=>{_tapCount=0;renderTapDots(0);},1500);
+if(_tapCount>=5){_tapCount=0;clearTimeout(*tapTimer);renderTapDots(0);if(currentUser&&currentUser.role===‘admin’){toast(‘Anda sudah login sebagai Admin \u2705’,‘success’);return;}openAdminPortal();}
+}
+function renderTapDots(count) { const el=document.getElementById(‘ap-tap-dots’); if(!el) return; el.innerHTML=Array.from({length:Math.min(count,5)},(*,i)=>`<div style="width:7px;height:7px;border-radius:50%;background:${i<count?'var(--gold)':'rgba(255,255,255,0.2)'}"></div>`).join(’’); }
+function openAdminPortal() {
+const portal=document.getElementById(‘admin-portal’), bd=document.getElementById(‘admin-portal-backdrop’);
+if(portal){portal.style.display=‘block’;bd.style.display=‘block’;requestAnimationFrame(()=>{portal.style.opacity=‘1’;portal.style.transform=‘translate(-50%,-50%) scale(1)’;});}
+}
+function closeAdminPortal() {
+const portal=document.getElementById(‘admin-portal’), bd=document.getElementById(‘admin-portal-backdrop’);
+if(portal){portal.style.opacity=‘0’;portal.style.transform=‘translate(-50%,-50%) scale(0.92)’;setTimeout(()=>{portal.style.display=‘none’;bd.style.display=‘none’;},250);}
+const err=document.getElementById(‘ap-error’); if(err) err.style.display=‘none’;
+const ep=document.getElementById(‘ap_email’), pp=document.getElementById(‘ap_pass’); if(ep)ep.value=’’; if(pp)pp.value=’’;
+}
+function doAdminLogin() {
+const email=document.getElementById(‘ap_email’)?.value.trim().toLowerCase();
+const pass=document.getElementById(‘ap_pass’)?.value;
+if(!email||!pass){showAdminError(‘Email dan password wajib diisi!’);return;}
+const adminAcc=DEMO_ACCOUNTS.find(a=>a.role===‘admin’&&a.email===email&&a.pass===pass);
+const allAccs=JSON.parse(localStorage.getItem(‘pu_accounts’)||’[]’);
+const realAdmin=allAccs.find(a=>a.role===‘admin’&&a.email===email&&a.pass===pass);
+if(adminAcc||realAdmin){
+currentUser={…(adminAcc||realAdmin)};
+localStorage.setItem(‘pu_current_user’,JSON.stringify(currentUser));
+closeAdminPortal(); applyUserSession(); updateSidebarUser(); syncAccountPopup(); syncAccountBtn(); syncHbDrawer();
+showPage(‘admin’,null,null); toast(‘Selamat datang, Super Admin! \uD83D\uDEE1\uFE0F’,‘success’);
+} else { showAdminError(‘Email atau password admin salah!’); }
+}
+function showAdminError(msg){const el=document.getElementById(‘ap-error’);if(el){el.textContent=msg;el.style.display=‘block’;}}
+
+// ─────────────────────────────────────────────────────────────
+// GATEKEEPER
+// ─────────────────────────────────────────────────────────────
+function openGatekeeper() { const m=document.getElementById(‘gatekeeper-modal’); if(m){m.style.display=‘flex’;gkReset();} }
+function closeGatekeeper(e) { if(!e||e.target===document.getElementById(‘gatekeeper-modal’)) document.getElementById(‘gatekeeper-modal’).style.display=‘none’; }
+function checkPaspor() {
+const nama=document.getElementById(‘gk_nama’)?.value.trim(), no=document.getElementById(‘gk_no’)?.value.trim(), exp=document.getElementById(‘gk_exp’)?.value, vaksin=document.getElementById(‘gk_vaksin’)?.checked;
+if(!nama||!no||!exp){toast(‘Lengkapi semua data!’,‘error’);return;}
+const words=nama.trim().split(/\s+/).filter(Boolean);
+if(words.length<2){showGkResult(‘error’,nama,no,0);return;}
+const expDate=new Date(exp), now=new Date(); now.setHours(0,0,0,0);
+const diffDays=Math.floor((expDate-now)/(1000*60*60*24));
+if(diffDays<0){showGkResult(‘expired’,nama,no,0);return;}
+const diffMonths=diffDays/30.44;
+if(diffMonths<9){showGkResult(‘short’,nama,no,Math.floor(diffMonths));return;}
+if(!vaksin){showGkResult(‘novaksin’,nama,no,Math.floor(diffMonths));return;}
+showGkResult(‘ok’,nama,no,Math.floor(diffMonths));
+}
+function showGkResult(type,nama,no,sisa) {
+const form=document.getElementById(‘gk-form’), result=document.getElementById(‘gk-result’); if(!result) return;
+if(form) form.style.display=‘none’; result.style.display=‘block’;
+const configs={
+error:    {icon:’\u270D\uFE0F’,color:’#E74C3C’,bg:’#FEF2F2’,title:‘Nama Tidak Valid’,msg:‘Nama paspor harus minimal 2 kata sesuai paspor Anda.’,tip:‘Hubungi Kantor Imigrasi untuk mengubah nama paspor.’,btn:false},
+expired:  {icon:’\u274C’,color:’#E74C3C’,bg:’#FEF2F2’,title:‘Paspor Sudah Kedaluwarsa’,msg:‘Paspor Anda sudah habis masa berlakunya.’,tip:‘Perpanjang paspor di Kantor Imigrasi atau via aplikasi M-Paspor.’,btn:false},
+short:    {icon:’\uD83D\uDEAB’,color:’#E67E22’,bg:’#FFF7ED’,title:`Sisa ${sisa} Bulan — Tidak Memenuhi Syarat`,msg:‘Masa berlaku paspor kurang dari 9 bulan dari sekarang.’,tip:‘Minimal 9 bulan dari tanggal keberangkatan. Perpanjang paspor terlebih dahulu.’,btn:false},
+novaksin: {icon:’\u26A0\uFE0F’,color:’#D97706’,bg:’#FFFBEB’,title:‘Paspor Layak — Tapi Belum Vaksin’,msg:`Sisa masa berlaku: ${sisa} bulan \u2705 Tapi vaksin meningitis belum dilakukan.`,tip:‘Vaksin meningitis wajib sebelum berangkat ke Arab Saudi. Kunjungi Puskesmas atau Klinik Kesehatan terdekat.’,btn:true},
+ok:       {icon:’\uD83C\uDF89’,color:’#065F46’,bg:’#ECFDF5’,title:‘Selamat! Semua Syarat Terpenuhi’,msg:`Nama: ${nama} \u2705\nPaspor: ${no} \u2705\nSisa masa berlaku: ${sisa} bulan \u2705\nVaksin: \u2705`,tip:‘Paspor Anda siap digunakan untuk umroh. Silakan pilih paket umroh yang sesuai!’,btn:true},
+};
+const c=configs[type];
+result.innerHTML=`<div style="padding:16px;border-radius:14px;background:${c.bg};border:1.5px solid ${c.color}20"> <div style="font-size:36px;margin-bottom:12px">${c.icon}</div> <div style="font-size:16px;font-weight:700;color:${c.color};margin-bottom:8px">${c.title}</div> <div style="font-size:13px;color:#374151;line-height:1.65;white-space:pre-line;margin-bottom:10px">${c.msg}</div> <div style="font-size:12px;color:var(--muted);background:rgba(0,0,0,0.04);padding:10px 12px;border-radius:8px;line-height:1.6">${c.tip}</div> <div style="display:flex;gap:10px;margin-top:16px"> <button onclick="gkReset()" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid rgba(27,77,62,0.12);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--text)">← Cek Ulang</button> ${c.btn?`<button onclick="closeGatekeeper();navigateToPackages()" style="flex:2;padding:11px;border-radius:10px;border:none;background:var(--emerald);color:white;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">\uD83D\uDD0D Lihat Paket Umroh</button>`:’’}
+</div>
+
+  </div>`;
+}
+function gkReset() { const f=document.getElementById('gk-form'),r=document.getElementById('gk-result'); if(f)f.style.display='flex'; if(r)r.style.display='none'; }
+
+// ─────────────────────────────────────────────────────────────
+// INISIALISASI
+// ─────────────────────────────────────────────────────────────
+(async function init() {
+// Tunggu Supabase SDK siap (max 3 detik)
+let waited=0;
+while(!window.supabase && waited<3000) { await new Promise(r=>setTimeout(r,100)); waited+=100; }
+if(window.supabase&&window.supabase.createClient) {
+supabaseClient=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{autoRefreshToken:true,persistSession:true}});
+}
+
+// Load data paket
+await loadPackages();
+renderPackages(getFiltered());
+renderAdminPackages();
+
+// Restore session dari Supabase Auth
+try {
+const sc=getSupaClient();
+if(sc&&sc.auth) {
+const {data:{session}}=await sc.auth.getSession();
+if(session&&!currentUser){
+const {data:profile}=await sc.from(‘profiles’).select(’*’).eq(‘User_id’,session.user.id).single();
+if(profile){
+const inisial=(profile.nama||session.user.email).trim().split(’ ‘).map(w=>w[0]).join(’’).toUpperCase().slice(0,2);
+currentUser={supabase_id:session.user.id,email:session.user.email,nama:profile.nama||session.user.email.split(’@’)[0],role:profile.role||‘jamaah’,wa:profile.wa||’’,inisial:profile.inisial||inisial,travel:profile.travel||’’,ppiu:profile.ppiu||’’,verif_status:profile.verif_status||‘approved’};
+localStorage.setItem(‘pu_current_user’,JSON.stringify(currentUser));
+}
+}
+}
+} catch(e){console.warn(‘Session restore:’,e);}
+
+applyUserSession(); updateSidebarUser(); syncAccountPopup(); syncAccountBtn(); syncHbDrawer(); updateStats();
+
+// Keyboard shortcut admin portal
+document.addEventListener(‘keydown’,e=>{if(e.ctrlKey&&e.shiftKey&&e.key===‘A’){e.preventDefault();if(currentUser&&currentUser.role===‘admin’){toast(‘Anda sudah login sebagai Admin \u2705’,‘success’);return;}openAdminPortal();}});
+
+// Topbar search
+document.getElementById(‘topbar-search’)?.addEventListener(‘keydown’,e=>{if(e.key===‘Enter’&&e.target.value.trim()){heroSearch();}});
+
+console.log(’\u2705 PilihUmroh.id siap — ‘+packages.length+’ paket dimuat’);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// SISTEM BOOKING LENGKAP — PilihUmroh.id
+// Fitur: Form booking, validasi paspor, pembayaran DP,
+//        upload bukti, dashboard biro & admin
+// ═══════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────
+// HELPER — Generate kode booking unik
+// ─────────────────────────────────────────────────────────────
+function generateBookingCode() {
+const chars = ‘ABCDEFGHJKLMNPQRSTUVWXYZ23456789’;
+let code = ‘PU-’;
+for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+return code;
+}
+
+// ─────────────────────────────────────────────────────────────
+// BUKA MODAL BOOKING — dipanggil dari kartu paket
+// ─────────────────────────────────────────────────────────────
+function openBookingModal(paketId) {
+// Cek login dulu
+if (!currentUser) {
+toast(‘Silakan login dulu untuk memesan paket’, ‘error’);
+setTimeout(() => { openSettingsFloating(); setTimeout(() => openSettingsSubPanel(‘akun’), 100); }, 300);
+return;
+}
+
+const paket = packages.find(p => p.id === paketId || p.id === parseInt(paketId));
+if (!paket) { toast(‘Paket tidak ditemukan’, ‘error’); return; }
+
+// Buat overlay modal booking
+document.getElementById(‘booking-modal-overlay’)?.remove();
+const overlay = document.createElement(‘div’);
+overlay.id = ‘booking-modal-overlay’;
+overlay.style.cssText = ‘position:fixed;inset:0;background:rgba(10,22,40,0.6);backdrop-filter:blur(5px);z-index:400;display:flex;align-items:flex-end;justify-content:center;padding:0’;
+overlay.onclick = e => { if (e.target === overlay) closeBookingModal(); };
+
+overlay.innerHTML = `
+<div id="booking-modal" style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,0.2);animation:slideUp 0.3s ease">
+<!-- Header -->
+<div style="background:linear-gradient(135deg,#1B4D3E,#2D6A56);padding:20px 24px;border-radius:24px 24px 0 0;position:sticky;top:0;z-index:10">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div>
+<div id="booking-step-label" style="font-size:10px;color:rgba(201,168,76,0.8);font-weight:700;letter-spacing:2px;text-transform:uppercase">STEP 1 DARI 3</div>
+<div id="booking-step-title" style="font-size:18px;font-weight:700;color:white;margin-top:2px">Cek Kelayakan Paspor</div>
+</div>
+<button onclick="closeBookingModal()" style="width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2715</button>
+</div>
+<!-- Progress bar -->
+<div style="margin-top:14px;background:rgba(255,255,255,0.15);border-radius:10px;height:4px">
+<div id="booking-progress" style="background:var(--gold);border-radius:10px;height:4px;width:33%;transition:width 0.4s ease"></div>
+</div>
+<!-- Info paket -->
+<div style="margin-top:12px;background:rgba(255,255,255,0.1);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+<span style="font-size:24px">\uD83D\uDD4C</span>
+<div style="flex:1;min-width:0">
+<div style="font-size:12px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${paket.name}</div>
+<div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:1px">${paket.travel} · ${paket.city}</div>
+</div>
+<div style="text-align:right;flex-shrink:0">
+<div style="font-size:13px;font-weight:800;color:var(--gold)">Rp ${paket.price}</div>
+<div style="font-size:10px;color:rgba(255,255,255,0.5)">DP: ${paket.dp || ‘Rp 5.000.000’}</div>
+</div>
+</div>
+</div>
+
+```
+  <!-- Body — diisi oleh step -->
+  <div id="booking-body" style="padding:20px 24px 32px"></div>
+</div>`;
+```
+
+document.body.appendChild(overlay);
+renderBookingStep1(paket);
+}
+
+function closeBookingModal() {
+const overlay = document.getElementById(‘booking-modal-overlay’);
+if (overlay) { overlay.style.opacity = ‘0’; overlay.style.transition = ‘opacity 0.2s’; setTimeout(() => overlay.remove(), 200); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// STEP 1 — CEK PASPOR & KELAYAKAN
+// ─────────────────────────────────────────────────────────────
+function renderBookingStep1(paket) {
+setBookingStep(1, ‘Cek Kelayakan Paspor’, 33);
+const body = document.getElementById(‘booking-body’);
+
+// Ambil tanggal keberangkatan dari paket (estimasi dari jadwal string)
+const now = new Date();
+const estimasiBerangkat = paket.jadwal_keberangkatan
+? new Date(paket.jadwal_keberangkatan)
+: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // default 3 bulan ke depan
+
+const diffHari = Math.floor((estimasiBerangkat - now) / (1000 * 60 * 60 * 24));
+const diffBulan = (diffHari / 30.44).toFixed(1);
+
+body.innerHTML = `
+<div style="margin-bottom:16px;background:rgba(27,77,62,0.04);border-radius:14px;padding:14px 16px;border-left:3px solid var(--emerald)">
+<div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:4px">INFO KEBERANGKATAN</div>
+<div style="font-size:13px;color:var(--text)">Estimasi keberangkatan: <strong>${paket.jadwal_keberangkatan || ‘± 3 bulan ke depan’}</strong></div>
+<div style="font-size:12px;color:var(--muted);margin-top:2px">Sisa waktu: ± ${diffBulan} bulan dari sekarang</div>
+</div>
+
+```
+<!-- Punya paspor? -->
+<div style="margin-bottom:16px">
+  <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:8px">Apakah Anda sudah punya paspor? *</label>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <button onclick="pilihPaspor(true)" id="btn-punya-paspor"
+      style="padding:14px;border-radius:12px;border:2px solid rgba(27,77,62,0.15);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);transition:all 0.2s">
+      \u2705 Ya, Sudah Punya
+    </button>
+    <button onclick="pilihPaspor(false)" id="btn-tidak-paspor"
+      style="padding:14px;border-radius:12px;border:2px solid rgba(27,77,62,0.15);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);transition:all 0.2s">
+      \u274C Belum Punya
+    </button>
+  </div>
+</div>
+
+<!-- Form paspor (muncul jika punya) -->
+<div id="form-paspor-detail" style="display:none">
+  <div style="margin-bottom:12px">
+    <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:6px">Nomor Paspor *</label>
+    <input id="step1-no-paspor" class="form-input" type="text" placeholder="Contoh: B1234567" style="width:100%;box-sizing:border-box;text-transform:uppercase">
+  </div>
+  <div style="margin-bottom:12px">
+    <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:6px">Tanggal Kedaluwarsa Paspor *</label>
+    <input id="step1-exp-paspor" class="form-input" type="date" style="width:100%;box-sizing:border-box">
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">\u26A0\uFE0F Minimal 9 bulan dari sekarang untuk umroh</div>
+  </div>
+</div>
+
+<!-- Pesan jika tidak punya paspor -->
+<div id="info-tidak-paspor" style="display:none">
+  <div id="pesan-tidak-paspor" style="border-radius:12px;padding:14px;margin-bottom:12px"></div>
+</div>
+
+<!-- Vaksin -->
+<div style="margin-bottom:20px">
+  <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:8px">Status Vaksin Meningitis *</label>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <button onclick="pilihVaksin(true)" id="btn-sudah-vaksin"
+      style="padding:14px;border-radius:12px;border:2px solid rgba(27,77,62,0.15);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);transition:all 0.2s">
+      \uD83D\uDC89 Sudah Vaksin
+    </button>
+    <button onclick="pilihVaksin(false)" id="btn-belum-vaksin"
+      style="padding:14px;border-radius:12px;border:2px solid rgba(27,77,62,0.15);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);transition:all 0.2s">
+      ⏳ Belum Vaksin
+    </button>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:6px">Vaksin meningitis wajib untuk masuk Arab Saudi. Jika belum, wajib dilakukan sebelum keberangkatan.</div>
+</div>
+
+<!-- Tombol lanjut -->
+<button onclick="validasiStep1(${paket.id})"
+  style="width:100%;padding:15px;border-radius:14px;background:linear-gradient(135deg,#1B4D3E,#2D6A56);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+  Lanjut → Isi Data Diri
+</button>`;
+```
+
+// State untuk pilihan
+window._bookingState = {
+paket,
+punya_paspor: null,
+sudah_vaksin: null,
+diffHari,
+};
+}
+
+function pilihPaspor(punya) {
+window._bookingState.punya_paspor = punya;
+const btnPunya = document.getElementById(‘btn-punya-paspor’);
+const btnTidak = document.getElementById(‘btn-tidak-paspor’);
+const formDetail = document.getElementById(‘form-paspor-detail’);
+const infoTidak = document.getElementById(‘info-tidak-paspor’);
+const pesanEl = document.getElementById(‘pesan-tidak-paspor’);
+
+if (punya) {
+btnPunya.style.cssText += ‘;border-color:var(–emerald);background:rgba(27,77,62,0.08);color:var(–emerald)’;
+btnTidak.style.cssText += ‘;border-color:rgba(27,77,62,0.15);background:none;color:var(–muted)’;
+formDetail.style.display = ‘block’;
+infoTidak.style.display = ‘none’;
+} else {
+btnTidak.style.cssText += ‘;border-color:var(–emerald);background:rgba(27,77,62,0.08);color:var(–emerald)’;
+btnPunya.style.cssText += ‘;border-color:rgba(27,77,62,0.15);background:none;color:var(–muted)’;
+formDetail.style.display = ‘none’;
+infoTidak.style.display = ‘block’;
+
+```
+const diffHari = window._bookingState.diffHari;
+if (diffHari < 60) {
+  pesanEl.style.cssText = 'background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px';
+  pesanEl.innerHTML = `<div style="font-size:22px;margin-bottom:8px">\uD83D\uDEAB</div>
+    <div style="font-size:14px;font-weight:700;color:#DC2626;margin-bottom:6px">Tidak Bisa Booking</div>
+    <div style="font-size:12.5px;color:#374151;line-height:1.65">Keberangkatan kurang dari <strong>2 bulan</strong> lagi, sedangkan proses pembuatan paspor minimal membutuhkan waktu 2 bulan. Silakan pilih paket dengan jadwal keberangkatan yang lebih jauh.</div>`;
+} else {
+  pesanEl.style.cssText = 'background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:14px';
+  pesanEl.innerHTML = `<div style="font-size:22px;margin-bottom:8px">\u26A0\uFE0F</div>
+    <div style="font-size:14px;font-weight:700;color:#D97706;margin-bottom:6px">Bisa Booking — Paspor Menyusul</div>
+    <div style="font-size:12.5px;color:#374151;line-height:1.65">Masih ada cukup waktu untuk membuat paspor. Anda bisa lanjut booking sekarang, namun <strong>nomor paspor wajib diserahkan ke biro paling lambat H-30 keberangkatan</strong>.</div>`;
+}
+```
+
+}
+}
+
+function pilihVaksin(sudah) {
+window._bookingState.sudah_vaksin = sudah;
+const btnSudah = document.getElementById(‘btn-sudah-vaksin’);
+const btnBelum = document.getElementById(‘btn-belum-vaksin’);
+if (sudah) {
+btnSudah.style.cssText += ‘;border-color:var(–emerald);background:rgba(27,77,62,0.08);color:var(–emerald)’;
+btnBelum.style.cssText += ‘;border-color:rgba(27,77,62,0.15);background:none;color:var(–muted)’;
+} else {
+btnBelum.style.cssText += ‘;border-color:#D97706;background:rgba(217,119,6,0.08);color:#D97706’;
+btnSudah.style.cssText += ‘;border-color:rgba(27,77,62,0.15);background:none;color:var(–muted)’;
+}
+}
+
+function validasiStep1(paketId) {
+const state = window._bookingState;
+
+if (state.punya_paspor === null) { toast(‘Pilih status paspor Anda’, ‘error’); return; }
+if (state.sudah_vaksin === null) { toast(‘Pilih status vaksin Anda’, ‘error’); return; }
+
+// Tolak jika belum punya paspor dan keberangkatan < 2 bulan
+if (!state.punya_paspor && state.diffHari < 60) {
+toast(‘Maaf, tidak bisa booking. Keberangkatan terlalu dekat untuk mengurus paspor.’, ‘error’);
+return;
+}
+
+// Validasi paspor jika punya
+if (state.punya_paspor) {
+const noPaspor = document.getElementById(‘step1-no-paspor’)?.value.trim();
+const expPaspor = document.getElementById(‘step1-exp-paspor’)?.value;
+if (!noPaspor) { toast(‘Nomor paspor wajib diisi’, ‘error’); return; }
+if (!expPaspor) { toast(‘Tanggal kedaluwarsa paspor wajib diisi’, ‘error’); return; }
+
+```
+const expDate = new Date(expPaspor);
+const now = new Date();
+const diffBulan = (expDate - now) / (1000 * 60 * 60 * 24 * 30.44);
+if (diffBulan < 9) { toast('Masa berlaku paspor kurang dari 9 bulan! Perpanjang paspor dulu.', 'error'); return; }
+
+state.no_paspor = noPaspor.toUpperCase();
+state.paspor_exp = expPaspor;
+```
+
+}
+
+state.sudah_vaksin_val = state.sudah_vaksin;
+renderBookingStep2(state.paket);
+}
+
+// ─────────────────────────────────────────────────────────────
+// STEP 2 — FORM DATA DIRI
+// ─────────────────────────────────────────────────────────────
+function renderBookingStep2(paket) {
+setBookingStep(2, ‘Isi Data Diri’, 66);
+const body = document.getElementById(‘booking-body’);
+const state = window._bookingState;
+
+body.innerHTML = `
+<div style="display:flex;flex-direction:column;gap:12px">
+
+```
+  <!-- Data Pribadi -->
+  <div style="background:rgba(27,77,62,0.04);border-radius:14px;padding:14px 16px;border-left:3px solid var(--emerald)">
+    <div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">\uD83D\uDC64 Data Pribadi</div>
+
+    <div style="margin-bottom:10px">
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Nama Lengkap (sesuai paspor/KTP) *</label>
+      <input id="bk-nama" class="form-input" type="text" placeholder="Contoh: SITI AMINAH BINTI AHMAD" value="${currentUser?.nama || ''}" style="width:100%;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:10px">
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">No. WhatsApp Aktif *</label>
+      <input id="bk-wa" class="form-input" type="tel" placeholder="628xxxxxxxxxx" value="${currentUser?.wa || ''}" style="width:100%;box-sizing:border-box">
+    </div>
+
+    <div>
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Kota Asal *</label>
+      <input id="bk-kota" class="form-input" type="text" placeholder="Contoh: Surabaya" style="width:100%;box-sizing:border-box">
+    </div>
+  </div>
+
+  <!-- Data Paspor -->
+  <div style="background:rgba(27,77,62,0.04);border-radius:14px;padding:14px 16px;border-left:3px solid var(--gold)">
+    <div style="font-size:11px;font-weight:700;color:#8A6C1A;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">\uD83D\uDCD8 Data Paspor</div>
+
+    ${state.punya_paspor ? `
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Nomor Paspor</label>
+        <input id="bk-paspor-no" class="form-input" type="text" value="${state.no_paspor || ''}" readonly style="width:100%;box-sizing:border-box;background:rgba(27,77,62,0.04);color:var(--emerald);font-weight:600">
+      </div>
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Tanggal Kedaluwarsa</label>
+        <input id="bk-paspor-exp" class="form-input" type="date" value="${state.paspor_exp || ''}" readonly style="width:100%;box-sizing:border-box;background:rgba(27,77,62,0.04);color:var(--emerald);font-weight:600">
+      </div>
+    ` : `
+      <div style="background:#FFF7ED;border-radius:10px;padding:12px;font-size:12px;color:#92400E">
+        \u26A0\uFE0F Paspor belum ada — wajib diserahkan ke biro <strong>paling lambat H-30</strong> sebelum keberangkatan.
+      </div>
+    `}
+  </div>
+
+  <!-- Data Perjalanan -->
+  <div style="background:rgba(27,77,62,0.04);border-radius:14px;padding:14px 16px;border-left:3px solid #2563EB">
+    <div style="font-size:11px;font-weight:700;color:#2563EB;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">\u2708\uFE0F Data Perjalanan</div>
+
+    <div style="margin-bottom:10px">
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Tipe Kamar *</label>
+      <select id="bk-kamar" class="form-input" style="width:100%;box-sizing:border-box;cursor:pointer">
+        <option value="">Pilih tipe kamar</option>
+        <option value="Double">Double (2 orang/kamar) — Harga Normal</option>
+        <option value="Triple">Triple (3 orang/kamar) — Lebih Hemat</option>
+        <option value="Quad">Quad (4 orang/kamar) — Paling Hemat</option>
+      </select>
+    </div>
+
+    <div>
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Jadwal Keberangkatan *</label>
+      <input id="bk-jadwal" class="form-input" type="text" placeholder="Contoh: Maret 2025" value="${paket.jadwal_keberangkatan || ''}" style="width:100%;box-sizing:border-box">
+    </div>
+  </div>
+
+  <!-- Data Kesehatan -->
+  <div style="background:rgba(27,77,62,0.04);border-radius:14px;padding:14px 16px;border-left:3px solid #059669">
+    <div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">\uD83C\uDFE5 Data Kesehatan</div>
+
+    <div style="background:${state.sudah_vaksin ? '#D1FAE5' : '#FEF3C7'};border-radius:10px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">${state.sudah_vaksin ? '\uD83D\uDC89' : '⏳'}</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:${state.sudah_vaksin ? '#065F46' : '#92400E'}">
+          Vaksin Meningitis: ${state.sudah_vaksin ? 'Sudah \u2705' : 'Belum — Wajib sebelum berangkat \u26A0\uFE0F'}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Data ini akan dicatat dalam berkas perjalanan Anda</div>
+      </div>
+    </div>
+
+    <div>
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Catatan Kesehatan Khusus (opsional)</label>
+      <textarea id="bk-kesehatan" class="form-textarea" placeholder="Contoh: diabetes, hipertensi, alergi obat tertentu..." style="width:100%;box-sizing:border-box;min-height:60px"></textarea>
+    </div>
+  </div>
+
+  <!-- Tombol -->
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:4px">
+    <button onclick="renderBookingStep1(window._bookingState.paket)"
+      style="padding:14px;border-radius:12px;border:1.5px solid rgba(27,77,62,0.15);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--text)">← Kembali</button>
+    <button onclick="validasiStep2(${paket.id})"
+      style="padding:14px;border-radius:12px;background:linear-gradient(135deg,#1B4D3E,#2D6A56);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+      Lanjut → Konfirmasi Pesan
+    </button>
+  </div>
+</div>`;
+```
+
+}
+
+function validasiStep2(paketId) {
+const nama   = document.getElementById(‘bk-nama’)?.value.trim();
+const wa     = document.getElementById(‘bk-wa’)?.value.replace(/\D/g, ‘’);
+const kota   = document.getElementById(‘bk-kota’)?.value.trim();
+const kamar  = document.getElementById(‘bk-kamar’)?.value;
+const jadwal = document.getElementById(‘bk-jadwal’)?.value.trim();
+
+if (!nama)   { toast(‘Nama lengkap wajib diisi’, ‘error’); return; }
+if (!wa || wa.length < 10) { toast(‘No. WhatsApp tidak valid’, ‘error’); return; }
+if (!kota)   { toast(‘Kota asal wajib diisi’, ‘error’); return; }
+if (!kamar)  { toast(‘Pilih tipe kamar’, ‘error’); return; }
+if (!jadwal) { toast(‘Jadwal keberangkatan wajib diisi’, ‘error’); return; }
+
+const state = window._bookingState;
+state.jamaah_nama  = nama;
+state.user_wa      = wa;
+state.kota_asal    = kota;
+state.tipe_kamar   = kamar;
+state.jadwal       = jadwal;
+state.catatan_kesehatan = document.getElementById(‘bk-kesehatan’)?.value.trim() || ‘’;
+
+renderBookingStep3(state.paket);
+}
+
+// ─────────────────────────────────────────────────────────────
+// STEP 3 — KONFIRMASI & SIMPAN BOOKING
+// ─────────────────────────────────────────────────────────────
+async function renderBookingStep3(paket) {
+setBookingStep(3, ‘Konfirmasi Pesanan’, 100);
+const body = document.getElementById(‘booking-body’);
+const state = window._bookingState;
+const bookingCode = generateBookingCode();
+state.booking_code = bookingCode;
+
+// Ambil info rekening biro
+let rekeningInfo = null;
+try {
+const { data } = await getSupaClient()
+.from(‘biro_rekening’)
+.select(’*’)
+.eq(‘biro_email’, paket.ownerEmail)
+.eq(‘aktif’, true)
+.single();
+rekeningInfo = data;
+} catch(e) {
+// Cek di localStorage (dari pendaftaran biro)
+const accs = JSON.parse(localStorage.getItem(‘pu_accounts’) || ‘[]’);
+const biro = accs.find(a => a.email === paket.ownerEmail);
+if (biro?.bank) rekeningInfo = biro;
+}
+
+const dpRaw = parseInt((paket.dp || ‘5000000’).replace(/\D/g, ‘’)) || 5000000;
+
+body.innerHTML = `
+<div style="display:flex;flex-direction:column;gap:14px">
+
+```
+  <!-- Ringkasan Pesanan -->
+  <div style="background:linear-gradient(135deg,rgba(27,77,62,0.06),rgba(201,168,76,0.06));border-radius:16px;padding:18px;border:1px solid rgba(27,77,62,0.12)">
+    <div style="font-size:12px;font-weight:700;color:var(--emerald);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px">\uD83D\uDCCB Ringkasan Pesanan</div>
+    ${[
+      ['Kode Booking', `<span style="font-family:monospace;font-weight:800;color:var(--emerald);font-size:15px">#${bookingCode}</span>`],
+      ['Paket', paket.name],
+      ['Travel', paket.travel],
+      ['Maskapai', paket.airline],
+      ['Jamaah', state.jamaah_nama],
+      ['WhatsApp', '+' + state.user_wa],
+      ['Kota Asal', state.kota_asal],
+      ['Tipe Kamar', state.tipe_kamar],
+      ['Jadwal', state.jadwal],
+      ['Paspor', state.punya_paspor ? state.no_paspor : 'Menyusul'],
+      ['Vaksin', state.sudah_vaksin ? '\u2705 Sudah' : '\u26A0\uFE0F Belum'],
+    ].map(([k,v]) => `
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(27,77,62,0.08)">
+        <span style="font-size:12px;color:var(--muted)">${k}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text);text-align:right;max-width:60%">${v}</span>
+      </div>`).join('')}
+  </div>
+
+  <!-- Info Pembayaran -->
+  <div style="background:#FFFBEB;border-radius:16px;padding:18px;border:1.5px solid #FDE68A">
+    <div style="font-size:12px;font-weight:700;color:#92400E;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px">\uD83D\uDCB0 Info Pembayaran DP</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;background:white;border-radius:10px;padding:12px 14px">
+      <span style="font-size:13px;color:var(--muted)">Nominal DP</span>
+      <span style="font-size:22px;font-weight:800;color:var(--emerald);font-family:'Cormorant Garamond',serif">Rp ${dpRaw.toLocaleString('id-ID')}</span>
+    </div>
+
+    ${rekeningInfo ? `
+      <div style="background:white;border-radius:12px;padding:14px;border:1px solid #FDE68A">
+        <div style="font-size:11px;font-weight:700;color:#92400E;margin-bottom:10px">TRANSFER KE REKENING BIRO:</div>
+        ${[
+          ['\uD83C\uDFE6 Bank', rekeningInfo.bank],
+          ['\uD83D\uDCB3 No. Rekening', `<span style="font-family:monospace;font-weight:800;font-size:15px;color:var(--emerald)">${rekeningInfo.no_rek}</span>`],
+          ['\uD83D\uDC64 Atas Nama', rekeningInfo.atas_nama],
+          ['\uD83D\uDCB0 Nominal', `<strong>Rp ${dpRaw.toLocaleString('id-ID')}</strong>`],
+        ].map(([k,v]) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed rgba(0,0,0,0.06)">
+            <span style="font-size:12px;color:var(--muted)">${k}</span>
+            <span style="font-size:12px;color:var(--text)">${v}</span>
+          </div>`).join('')}
+      </div>
+      <div style="font-size:11.5px;color:#92400E;margin-top:10px;line-height:1.6;background:rgba(251,191,36,0.15);border-radius:8px;padding:10px 12px">
+        \u26A0\uFE0F <strong>Penting:</strong> Booking akan otomatis dibatalkan jika DP tidak dibayar dalam <strong>2×24 jam</strong>. Upload bukti transfer setelah pembayaran.
+      </div>
+    ` : `
+      <div style="background:rgba(27,77,62,0.06);border-radius:10px;padding:12px;font-size:12.5px;color:var(--muted);line-height:1.6">
+        ℹ\uFE0F Info rekening pembayaran akan dikirimkan oleh biro melalui WhatsApp setelah booking dikonfirmasi.
+      </div>
+    `}
+  </div>
+
+  <!-- Tombol -->
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
+    <button onclick="renderBookingStep2(window._bookingState.paket)"
+      style="padding:14px;border-radius:12px;border:1.5px solid rgba(27,77,62,0.15);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--text)">← Kembali</button>
+    <button onclick="submitBooking()"
+      style="padding:14px;border-radius:12px;background:linear-gradient(135deg,#1B4D3E,#2D6A56);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+      \u2705 Konfirmasi & Pesan Sekarang
+    </button>
+  </div>
+</div>`;
+```
+
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUBMIT BOOKING KE SUPABASE
+// ─────────────────────────────────────────────────────────────
+async function submitBooking() {
+const state = window._bookingState;
+const paket = state.paket;
+const btn = document.querySelector(’#booking-modal button[onclick=“submitBooking()”]’);
+if (btn) { btn.disabled = true; btn.textContent = ‘⏳ Memproses…’; }
+
+const dpRaw = parseInt((paket.dp || ‘5000000’).replace(/\D/g, ‘’)) || 5000000;
+const priceRaw = paket.price_raw || 0;
+const autoCancelAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+
+const bookingData = {
+booking_code:          state.booking_code,
+user_email:            currentUser.email,
+user_nama:             currentUser.nama,
+user_wa:               state.user_wa,
+package_id:            paket.id,
+package_name:          paket.name,
+travel_email:          paket.ownerEmail,
+travel_nama:           paket.travel,
+travel_wa:             paket.wa,
+jamaah_nama:           state.jamaah_nama,
+jamaah_paspor:         state.no_paspor    || null,
+jamaah_paspor_exp:     state.paspor_exp   || null,
+tipe_kamar:            state.tipe_kamar,
+jadwal_keberangkatan:  state.jadwal,
+kota_asal:             state.kota_asal,
+status:                ‘menunggu_konfirmasi’,
+status_dokumen:        ‘belum_upload’,
+status_pembayaran:     ‘belum_bayar’,
+harga_paket:           priceRaw,
+nominal_dp:            dpRaw,
+dp_dibayar:            0,
+sisa_pembayaran:       priceRaw,
+sudah_vaksin:          state.sudah_vaksin || false,
+punya_paspor:          state.punya_paspor || false,
+catatan_kesehatan:     state.catatan_kesehatan || null,
+auto_cancel_at:        autoCancelAt,
+created_at:            new Date().toISOString(),
+updated_at:            new Date().toISOString(),
+};
+
+try {
+const { error } = await getSupaClient().from(‘bookings’).insert(bookingData);
+if (error) throw error;
+} catch(e) {
+console.warn(‘Booking DB error:’, e);
+// Simpan ke localStorage sebagai fallback
+const orders = JSON.parse(localStorage.getItem(‘pu_orders’) || ‘[]’);
+orders.unshift({ …bookingData, id: bookingData.booking_code });
+localStorage.setItem(‘pu_orders’, JSON.stringify(orders));
+}
+
+// Simpan notifikasi
+simpanNotifikasi({
+type:   ‘pesanan’,
+icon:   ‘\uD83C\uDF89’,
+title:  ‘Booking Berhasil!’,
+body:   `Booking #${state.booking_code} untuk ${paket.name} berhasil dibuat.`,
+time:   new Date().toISOString(),
+read:   false,
+});
+
+// Tampilkan halaman sukses
+renderBookingSuccess(state, paket, dpRaw);
+}
+
+// ─────────────────────────────────────────────────────────────
+// HALAMAN SUKSES + UPLOAD BUKTI DP
+// ─────────────────────────────────────────────────────────────
+function renderBookingSuccess(state, paket, dpRaw) {
+const body = document.getElementById(‘booking-body’);
+const header = document.getElementById(‘booking-step-title’);
+const label = document.getElementById(‘booking-step-label’);
+const progress = document.getElementById(‘booking-progress’);
+if (header) header.textContent = ‘Booking Berhasil! \uD83C\uDF89’;
+if (label) label.textContent = ‘SELANJUTNYA: BAYAR DP’;
+if (progress) progress.style.width = ‘100%’;
+
+body.innerHTML = `
+<div style="text-align:center;padding:10px 0 20px">
+<div style="font-size:60px;margin-bottom:12px;animation:pulse 1.5s ease infinite">\uD83C\uDF89</div>
+<div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:var(--emerald);margin-bottom:6px">Booking Berhasil!</div>
+<div style="font-size:22px;font-weight:800;color:var(--emerald);font-family:monospace;background:rgba(27,77,62,0.08);padding:8px 20px;border-radius:10px;display:inline-block;margin-bottom:8px">#${state.booking_code}</div>
+<div style="font-size:13px;color:var(--muted);margin-bottom:20px">Simpan kode booking ini untuk melacak pesanan Anda</div>
+</div>
+
+```
+<!-- Langkah selanjutnya -->
+<div style="background:#FFF7ED;border-radius:16px;padding:18px;border:1.5px solid #FDE68A;margin-bottom:16px">
+  <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:14px">\uD83D\uDD14 Langkah Selanjutnya:</div>
+  ${['1\uFE0F⃣ Tunggu konfirmasi dari biro travel (maks. 1×24 jam)','2\uFE0F⃣ Setelah dikonfirmasi, lakukan pembayaran DP','3\uFE0F⃣ Upload bukti transfer di aplikasi ini','4\uFE0F⃣ Biro konfirmasi DP → booking aktif','5\uFE0F⃣ Upload dokumen lengkap (paspor, KTP, vaksin, pas foto)'].map(s => `
+    <div style="font-size:12.5px;color:#374151;padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.06);line-height:1.5">${s}</div>`).join('')}
+</div>
+
+<!-- Upload bukti DP (jika sudah bayar) -->
+<div style="background:white;border-radius:16px;padding:18px;border:1.5px solid rgba(27,77,62,0.12);margin-bottom:16px">
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">\uD83D\uDCE4 Sudah Bayar DP?</div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Upload bukti transfer sekarang agar biro bisa segera konfirmasi</div>
+
+  <label style="display:block;border:2px dashed rgba(27,77,62,0.2);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s" for="upload-bukti-dp" onmouseenter="this.style.borderColor='var(--emerald)'" onmouseleave="this.style.borderColor='rgba(27,77,62,0.2)'">
+    <div id="preview-bukti-dp">
+      <div style="font-size:32px;margin-bottom:8px">\uD83D\uDCF7</div>
+      <div style="font-size:13px;font-weight:600;color:var(--emerald)">Ketuk untuk upload bukti transfer</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Format: JPG, PNG, atau PDF • Maks. 5MB</div>
+    </div>
+    <input type="file" id="upload-bukti-dp" accept="image/*,.pdf" style="display:none" onchange="previewBuktiDP(this,'${state.booking_code}')">
+  </label>
+
+  <div id="bukti-dp-status" style="display:none;margin-top:12px"></div>
+</div>
+
+<!-- Tombol aksi -->
+<div style="display:flex;flex-direction:column;gap:10px">
+  <button onclick="closeBookingModal();showPage('bookings',null,'bn-bookings')"
+    style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#1B4D3E,#2D6A56);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">
+    \uD83E\uDDFE Lihat Pesanan Saya
+  </button>
+  <button onclick="window.open('https://wa.me/${paket.wa}?text=${encodeURIComponent('Assalamualaikum, saya baru booking paket ' + paket.name + ' dengan kode #' + state.booking_code)}','_blank')"
+    style="width:100%;padding:13px;border-radius:12px;background:#25D366;color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">
+    \uD83D\uDCAC Hubungi Biro via WhatsApp
+  </button>
+</div>`;
+```
+
+}
+
+// ─────────────────────────────────────────────────────────────
+// UPLOAD BUKTI DP
+// ─────────────────────────────────────────────────────────────
+async function previewBuktiDP(input, bookingCode) {
+const file = input.files[0]; if (!file) return;
+if (file.size > 5 * 1024 * 1024) { toast(‘File terlalu besar! Maksimal 5MB’, ‘error’); return; }
+
+const statusEl = document.getElementById(‘bukti-dp-status’);
+const previewEl = document.getElementById(‘preview-bukti-dp’);
+statusEl.style.display = ‘block’;
+statusEl.innerHTML = `<div style="text-align:center;padding:10px;color:var(--muted);font-size:13px">⏳ Mengupload bukti...</div>`;
+
+try {
+let buktiUrl = ‘’;
+
+```
+// Coba upload ke Supabase Storage
+try {
+  const fileName = `dp_${bookingCode}_${Date.now()}.${file.name.split('.').pop()}`;
+  const { data, error } = await getSupaClient().storage
+    .from('bukti-bayar')
+    .upload(fileName, file, { contentType: file.type });
+  if (!error && data) {
+    const { data: urlData } = getSupaClient().storage.from('bukti-bayar').getPublicUrl(fileName);
+    buktiUrl = urlData?.publicUrl || '';
+  }
+} catch(e) { console.warn('Storage upload error:', e); }
+
+// Fallback: simpan sebagai base64
+if (!buktiUrl) {
+  buktiUrl = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => res(e.target.result);
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Update status di database
+await getSupaClient()
+  .from('bookings')
+  .update({ bukti_dp: buktiUrl, status_pembayaran: 'dp_menunggu', updated_at: new Date().toISOString() })
+  .eq('booking_code', bookingCode);
+
+// Update di localStorage juga
+const orders = JSON.parse(localStorage.getItem('pu_orders') || '[]');
+const idx = orders.findIndex(o => o.booking_code === bookingCode || o.id === bookingCode);
+if (idx !== -1) { orders[idx].bukti_dp = buktiUrl; orders[idx].status_pembayaran = 'dp_menunggu'; }
+localStorage.setItem('pu_orders', JSON.stringify(orders));
+
+// Preview sukses
+const isImg = file.type.startsWith('image/');
+previewEl.innerHTML = isImg
+  ? `<img src="${buktiUrl}" style="max-width:100%;border-radius:10px;max-height:200px;object-fit:contain">`
+  : `<div style="padding:20px;font-size:13px;color:var(--emerald)">\uD83D\uDCC4 ${file.name}</div>`;
+
+statusEl.innerHTML = `
+  <div style="background:#D1FAE5;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:20px">\u2705</span>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:#065F46">Bukti transfer berhasil diupload!</div>
+      <div style="font-size:11px;color:#047857;margin-top:2px">Biro akan memeriksa dan mengkonfirmasi pembayaran Anda</div>
+    </div>
+  </div>`;
+
+// Notifikasi
+simpanNotifikasi({ type:'pembayaran', icon:'\uD83D\uDCB3', title:'Bukti DP Terkirim', body:`Bukti DP untuk booking #${bookingCode} sudah terkirim ke biro.`, time:new Date().toISOString(), read:false });
+toast('Bukti transfer berhasil diupload! Biro akan segera mengkonfirmasi.', 'success');
+```
+
+} catch(e) {
+statusEl.innerHTML = `<div style="background:#FEF2F2;border-radius:10px;padding:12px;font-size:12.5px;color:#DC2626">\u274C Gagal upload. Coba lagi atau hubungi biro langsung.</div>`;
+console.error(‘Upload bukti error:’, e);
+}
+}
+
+// ─────────────────────────────────────────────────────────────
+// HELPER — Set step indicator
+// ─────────────────────────────────────────────────────────────
+function setBookingStep(step, title, progress) {
+const labels = { 1:‘STEP 1 DARI 3’, 2:‘STEP 2 DARI 3’, 3:‘STEP 3 DARI 3’ };
+const labelEl = document.getElementById(‘booking-step-label’);
+const titleEl = document.getElementById(‘booking-step-title’);
+const progressEl = document.getElementById(‘booking-progress’);
+if (labelEl) labelEl.textContent = labels[step] || ‘’;
+if (titleEl) titleEl.textContent = title;
+if (progressEl) progressEl.style.width = progress + ‘%’;
+}
+
+// ─────────────────────────────────────────────────────────────
+// SISTEM NOTIFIKASI
+// ─────────────────────────────────────────────────────────────
+function simpanNotifikasi(notif) {
+try {
+const key = ‘pu_notif_’ + (currentUser?.email || ‘guest’);
+const list = JSON.parse(localStorage.getItem(key) || ‘[]’);
+list.unshift({ …notif, id: Date.now() });
+localStorage.setItem(key, JSON.stringify(list.slice(0, 50)));
+updateNotifBadge();
+} catch(e) {}
+}
+
+function getNotifikasi() {
+try {
+const key = ‘pu_notif_’ + (currentUser?.email || ‘guest’);
+return JSON.parse(localStorage.getItem(key) || ‘[]’);
+} catch(e) { return []; }
+}
+
+function updateNotifBadge() {
+const list = getNotifikasi();
+const unread = list.filter(n => !n.read).length;
+const badge = document.getElementById(‘notif-badge’);
+if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? ‘’ : ‘none’; }
+}
+
+function renderNotifList(cat = ‘semua’) {
+const el = document.getElementById(‘notif-list’);
+const subEl = document.getElementById(‘notif-sub’);
+if (!el) return;
+
+const list = getNotifikasi();
+const filtered = cat === ‘semua’ ? list : list.filter(n => n.type === cat);
+const unread = list.filter(n => !n.read).length;
+if (subEl) subEl.textContent = unread > 0 ? `${unread} notifikasi belum dibaca` : ‘Semua notifikasi sudah dibaca’;
+
+if (!filtered.length) {
+el.innerHTML = `<div style="text-align:center;padding:60px 20px"><div style="font-size:72px;margin-bottom:16px">\uD83D\uDD14</div><div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">Belum Ada Notifikasi</div><div style="font-size:13px;color:var(--muted)">Notifikasi pesanan dan pembayaran akan muncul di sini.</div></div>`;
+return;
+}
+
+el.innerHTML = filtered.map(n => ` <div class="notif-item" data-read="${n.read}" data-id="${n.id}" style="background:${n.read ? 'white' : 'rgba(27,77,62,0.03)'};border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid ${n.read ? 'rgba(27,77,62,0.07)' : 'rgba(27,77,62,0.15)'};cursor:pointer;display:flex;gap:14px;align-items:flex-start" onclick="bacaNotif(${n.id})"> <div style="width:42px;height:42px;border-radius:12px;background:rgba(27,77,62,0.08);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${n.icon || '\uD83D\uDD14'}</div> <div style="flex:1;min-width:0"> <div style="font-size:13.5px;font-weight:${n.read ? '600' : '700'};color:var(--text)">${n.title}</div> <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5">${n.body}</div> <div style="font-size:10.5px;color:var(--muted);margin-top:6px">${formatTimeAgo(n.time)}</div> </div> ${!n.read ? '<div style="width:8px;height:8px;border-radius:50%;background:var(--emerald);flex-shrink:0;margin-top:4px"></div>' : ''} </div>`).join(’’);
+}
+
+function bacaNotif(id) {
+const key = ‘pu_notif_’ + (currentUser?.email || ‘guest’);
+const list = JSON.parse(localStorage.getItem(key) || ‘[]’);
+const idx = list.findIndex(n => n.id === id);
+if (idx !== -1) { list[idx].read = true; localStorage.setItem(key, JSON.stringify(list)); }
+renderNotifList(); updateNotifBadge();
+}
+
+function markAllRead() {
+const key = ‘pu_notif_’ + (currentUser?.email || ‘guest’);
+const list = JSON.parse(localStorage.getItem(key) || ‘[]’);
+list.forEach(n => n.read = true);
+localStorage.setItem(key, JSON.stringify(list));
+renderNotifList(); updateNotifBadge();
+toast(‘Semua notifikasi sudah dibaca’);
+}
+
+function filterNotif(el, cat) {
+document.querySelectorAll(’#page-reports .filter-chip’).forEach(c => c.classList.remove(‘active’));
+el.classList.add(‘active’);
+renderNotifList(cat);
+}
+
+function formatTimeAgo(isoTime) {
+if (!isoTime) return ‘’;
+const diff = Date.now() - new Date(isoTime).getTime();
+const m = Math.floor(diff / 60000);
+const h = Math.floor(diff / 3600000);
+const d = Math.floor(diff / 86400000);
+if (m < 1) return ‘Baru saja’;
+if (m < 60) return `${m} menit lalu`;
+if (h < 24) return `${h} jam lalu`;
+return `${d} hari lalu`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DASHBOARD BIRO — Booking masuk lengkap
+// ─────────────────────────────────────────────────────────────
+async function renderBiroDashboard() {
+// Ambil booking milik biro ini
+let bookings = [];
+try {
+const { data, error } = await getSupaClient()
+.from(‘bookings’).select(’*’)
+.eq(‘travel_email’, currentUser.email)
+.order(‘created_at’, { ascending: false });
+if (!error && data) bookings = data;
+} catch(e) {
+const orders = JSON.parse(localStorage.getItem(‘pu_orders’) || ‘[]’);
+bookings = orders.filter(o => o.travel_email === currentUser.email || o.travel_nama === currentUser.travel);
+}
+
+// Update stat cards
+const pending  = bookings.filter(b => b.status === ‘menunggu_konfirmasi’).length;
+const dpMasuk  = bookings.filter(b => b.status_pembayaran === ‘dp_menunggu’).length;
+const aktif    = bookings.filter(b => ![‘selesai’,‘dibatalkan’].includes(b.status)).length;
+
+const el = document.getElementById(‘biro-bookings-table’);
+const section = document.getElementById(‘biro-bookings-section’);
+if (!el || !isBiro()) return;
+if (section) section.style.display = ‘block’;
+
+// Badge count
+const countEl = document.getElementById(‘biro-booking-count’);
+if (countEl) { countEl.textContent = bookings.length; countEl.style.display = bookings.length ? ‘’ : ‘none’; }
+
+if (!bookings.length) {
+el.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--muted)"><div style="font-size:40px;margin-bottom:10px">\uD83D\uDCE5</div><div style="font-size:13px;font-weight:700">Belum ada booking masuk</div></div>`;
+return;
+}
+
+el.innerHTML = ` <div style="padding:12px 16px;background:rgba(27,77,62,0.03);display:grid;grid-template-columns:repeat(3,1fr);gap:10px;border-bottom:1px solid rgba(27,77,62,0.06)"> ${[['\uD83D\uDCEC Menunggu Konfirmasi', pending, '#E67E22'],['\uD83D\uDCB3 DP Masuk', dpMasuk, '#2563EB'],['\uD83D\uDFE2 Booking Aktif', aktif, '#1B4D3E']].map(([l,v,c])=>`
+<div style="text-align:center;background:white;border-radius:10px;padding:10px;border:1px solid rgba(27,77,62,0.08)">
+<div style="font-size:20px;font-weight:800;color:${c}">${v}</div>
+<div style="font-size:10px;color:var(--muted);margin-top:2px">${l}</div>
+</div>`).join('')} </div> <div style="overflow-x:auto"> <table style="width:100%;border-collapse:collapse;min-width:700px"> <thead><tr style="background:var(--cream)"> ${['Kode','Jamaah','Paket','Status Booking','Status DP','Status Dokumen','Aksi'].map(h=>`<th style="padding:11px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">${h}</th>`).join('')} </tr></thead> <tbody> ${bookings.map(b => `
+<tr style="border-top:1px solid rgba(27,77,62,0.05)" onmouseenter="this.style.background='rgba(27,77,62,0.02)'" onmouseleave="this.style.background=''">
+<td style="padding:12px 14px;font-size:11px;font-weight:700;color:var(--emerald);font-family:monospace">${b.booking_code}</td>
+<td style="padding:12px 14px">
+<div style="font-size:12px;font-weight:600;color:var(--text)">${b.jamaah_nama}</div>
+<div style="font-size:10px;color:var(--muted)">${b.user_wa || ‘’}</div>
+</td>
+<td style="padding:12px 14px;font-size:12px;color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.package_name}</td>
+<td style="padding:12px 14px">${getStatusBadge(b.status)}</td>
+<td style="padding:12px 14px">${getPaymentBadge(b.status_pembayaran||‘belum_bayar’)}</td>
+<td style="padding:12px 14px">${getDokumenBadge(b.status_dokumen||‘belum_upload’)}</td>
+<td style="padding:12px 14px">
+<div style="display:flex;gap:5px;flex-wrap:wrap">
+<button onclick=”_openBD(this)” data-booking=’${JSON.stringify(b).replace(/’/g,’'’)}’
+style=“padding:5px 10px;border-radius:6px;border:1px solid rgba(27,77,62,0.15);background:white;font-size:10px;font-weight:600;cursor:pointer”>\uD83D\uDC41 Detail</button>
+${b.status===‘menunggu_konfirmasi’ ? ` <button onclick="konfirmasiBooking('${b.booking_code}')" style="padding:5px 8px;border-radius:6px;border:none;background:var(--emerald);font-size:10px;font-weight:700;cursor:pointer;color:white">\u2705</button>` : ‘’}
+${b.status_pembayaran===‘dp_menunggu’ ? ` <button onclick="konfirmasiDP('${b.booking_code}',true)" style="padding:5px 8px;border-radius:6px;border:none;background:#2563EB;font-size:10px;font-weight:700;cursor:pointer;color:white">\uD83D\uDCB3 DP</button>` : ‘’}
+${b.user_wa ? ` <button onclick="window.open('https://wa.me/${b.user_wa}','_blank')" style="padding:5px 8px;border-radius:6px;border:none;background:#25D366;font-size:10px;font-weight:600;color:white;cursor:pointer">\uD83D\uDCAC</button>` : ‘’}
+</div>
+</td>
+</tr>`).join('')} </tbody> </table> </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// KONFIRMASI BOOKING OLEH BIRO
+// ─────────────────────────────────────────────────────────────
+async function konfirmasiBooking(bookingCode) {
+if (!confirm(`Konfirmasi booking #${bookingCode}?`)) return;
+try {
+await getSupaClient().from(‘bookings’)
+.update({ status: ‘dikonfirmasi’, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+.eq(‘booking_code’, bookingCode);
+toast(`\u2705 Booking #${bookingCode} dikonfirmasi`, ‘success’);
+renderBiroDashboard(); renderAdminBookings();
+} catch(e) { toast(’Gagal konfirmasi: ’ + e.message, ‘error’); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// KONFIRMASI DP OLEH BIRO
+// ─────────────────────────────────────────────────────────────
+async function konfirmasiDP(bookingCode, terima) {
+if (terima) {
+if (!confirm(`Konfirmasi penerimaan DP untuk booking #${bookingCode}?`)) return;
+try {
+await getSupaClient().from(‘bookings’)
+.update({ status_pembayaran: ‘dp_dikonfirmasi’, status: ‘dp_diterima’, updated_at: new Date().toISOString() })
+.eq(‘booking_code’, bookingCode);
+toast(`\u2705 DP booking #${bookingCode} dikonfirmasi`, ‘success’);
+renderBiroDashboard(); renderAdminBookings();
+} catch(e) { toast(’Gagal: ’ + e.message, ‘error’); }
+} else {
+// Tolak DP
+const alasan = prompt(‘Alasan penolakan DP:’);
+if (!alasan) return;
+try {
+await getSupaClient().from(‘bookings’)
+.update({ status_pembayaran: ‘dp_ditolak’, dp_note: alasan, updated_at: new Date().toISOString() })
+.eq(‘booking_code’, bookingCode);
+toast(`DP ditolak — jamaah diberitahu`, ‘warning’);
+renderBiroDashboard();
+} catch(e) { toast(’Gagal: ’ + e.message, ‘error’); }
+}
+}
+
+// ─────────────────────────────────────────────────────────────
+// DETAIL BOOKING LENGKAP (Biro & Admin)
+// ─────────────────────────────────────────────────────────────
+
+function _openBD(el) {
+try {
+var raw = el.getAttribute(‘data-booking’);
+var obj = JSON.parse(raw.replace(/'/g,”’”));
+showBookingDetailLengkap(obj);
+} catch(e) { console.error(’_openBD error’,e); toast(‘Gagal buka detail’,‘error’); }
+}
+
+function showBookingDetailLengkap(booking) {
+if (typeof booking === ‘string’) { try { booking = JSON.parse(booking); } catch(e) { return; } }
+const overlay = document.getElementById(‘booking-detail-overlay’);
+const body = document.getElementById(‘booking-detail-body’);
+const codeEl = document.getElementById(‘booking-detail-code’);
+if (!overlay || !body) return;
+if (codeEl) codeEl.textContent = ‘#’ + (booking.booking_code || ‘—’);
+
+body.innerHTML = `
+<!-- Status 3-in-1 -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px">
+<div style="text-align:center;background:rgba(27,77,62,0.04);border-radius:12px;padding:10px">
+<div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Booking</div>
+${getStatusBadge(booking.status)}
+</div>
+<div style="text-align:center;background:rgba(27,77,62,0.04);border-radius:12px;padding:10px">
+<div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Pembayaran</div>
+${getPaymentBadge(booking.status_pembayaran||‘belum_bayar’)}
+</div>
+<div style="text-align:center;background:rgba(27,77,62,0.04);border-radius:12px;padding:10px">
+<div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Dokumen</div>
+${getDokumenBadge(booking.status_dokumen||‘belum_upload’)}
+</div>
+</div>
+
+```
+<!-- Data Paket -->
+<div style="background:var(--cream);border-radius:14px;padding:14px;margin-bottom:14px">
+  <div style="font-size:11px;font-weight:700;color:var(--emerald);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">\uD83D\uDCE6 Paket</div>
+  ${[['Nama',booking.package_name],['Travel',booking.travel_nama],['Tipe Kamar',booking.tipe_kamar],['Jadwal',booking.jadwal_keberangkatan]].map(([k,v])=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed rgba(27,77,62,0.08)">
+      <span style="font-size:12px;color:var(--muted)">${k}</span>
+      <span style="font-size:12px;font-weight:600;color:var(--text)">${v||'—'}</span>
+    </div>`).join('')}
+</div>
+
+<!-- Data Jamaah -->
+<div style="background:var(--cream);border-radius:14px;padding:14px;margin-bottom:14px">
+  <div style="font-size:11px;font-weight:700;color:var(--emerald);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">\uD83D\uDC64 Data Jamaah</div>
+  ${[['Nama',booking.jamaah_nama],['WhatsApp',booking.user_wa],['Kota Asal',booking.kota_asal],['No. Paspor',booking.jamaah_paspor||'Belum ada'],['Exp. Paspor',booking.jamaah_paspor_exp||'—'],['Vaksin',booking.sudah_vaksin?'\u2705 Sudah':'\u26A0\uFE0F Belum'],['Catatan Kesehatan',booking.catatan_kesehatan||'—']].map(([k,v])=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed rgba(27,77,62,0.08)">
+      <span style="font-size:12px;color:var(--muted)">${k}</span>
+      <span style="font-size:12px;font-weight:600;color:var(--text)">${v||'—'}</span>
+    </div>`).join('')}
+</div>
+
+<!-- Pembayaran + Bukti -->
+<div style="background:var(--cream);border-radius:14px;padding:14px;margin-bottom:14px">
+  <div style="font-size:11px;font-weight:700;color:var(--emerald);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">\uD83D\uDCB0 Pembayaran</div>
+  ${[['Harga Total','Rp '+(booking.harga_paket||0).toLocaleString('id-ID')],['Nominal DP','Rp '+(booking.nominal_dp||0).toLocaleString('id-ID')],['DP Dibayar','Rp '+(booking.dp_dibayar||0).toLocaleString('id-ID')],['Sisa','Rp '+(booking.sisa_pembayaran||0).toLocaleString('id-ID')]].map(([k,v])=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed rgba(27,77,62,0.08)">
+      <span style="font-size:12px;color:var(--muted)">${k}</span>
+      <span style="font-size:12px;font-weight:700;color:var(--text)">${v}</span>
+    </div>`).join('')}
+
+  ${booking.bukti_dp ? `
+    <div style="margin-top:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">BUKTI TRANSFER DP:</div>
+      ${booking.bukti_dp.startsWith('data:image') || booking.bukti_dp.match(/\.(jpg|jpeg|png|webp)$/i)
+        ? `<img src="${booking.bukti_dp}" style="width:100%;border-radius:10px;max-height:200px;object-fit:contain;cursor:pointer" onclick="window.open('${booking.bukti_dp}','_blank')">`
+        : `<a href="${booking.bukti_dp}" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(37,99,235,0.08);border-radius:10px;text-decoration:none"><span style="font-size:20px">\uD83D\uDCC4</span><span style="font-size:12.5px;font-weight:600;color:#2563EB">Lihat Bukti Transfer</span></a>`}
+    </div>
+
+    ${isMgr() && booking.status_pembayaran === 'dp_menunggu' ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+        <button onclick="konfirmasiDP('${booking.booking_code}',true);closeBookingDetail()"
+          style="padding:10px;border-radius:10px;background:var(--emerald);color:white;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">\u2705 Konfirmasi DP</button>
+        <button onclick="konfirmasiDP('${booking.booking_code}',false);closeBookingDetail()"
+          style="padding:10px;border-radius:10px;background:rgba(220,38,38,0.08);color:#DC2626;border:1.5px solid rgba(220,38,38,0.2);font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">\u274C Tolak DP</button>
+      </div>` : ''}
+  ` : '<div style="margin-top:8px;font-size:12px;color:var(--muted)">Belum ada bukti transfer</div>'}
+</div>
+
+<!-- Aksi -->
+<div style="display:flex;gap:8px">
+  <button onclick="closeBookingDetail()" style="flex:1;padding:12px;border-radius:11px;border:1.5px solid rgba(27,77,62,0.12);background:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--text)">Tutup</button>
+  ${booking.user_wa ? `<button onclick="window.open('https://wa.me/${booking.user_wa}','_blank')" style="flex:2;padding:12px;border-radius:11px;border:none;background:linear-gradient(135deg,#25D366,#128C7E);color:white;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">\uD83D\uDCAC Chat Jamaah</button>` : ''}
+</div>`;
+```
+
+overlay.style.display = ‘flex’;
+}
+
+// Override showBookingDetailModal agar pakai versi lengkap
+function showBookingDetailModal(booking) { showBookingDetailLengkap(booking); }
+
+// ─────────────────────────────────────────────────────────────
+// BADGE DOKUMEN
+// ─────────────────────────────────────────────────────────────
+function getDokumenBadge(status) {
+const map = {
+belum_upload:      [‘rgba(107,114,128,0.1)’, ‘#6B7280’,  ‘\uD83D\uDCCB Belum Upload’],
+menunggu_review:   [‘rgba(37,99,235,0.1)’,   ‘#2563EB’,  ‘⏳ Review’],
+perlu_perbaikan:   [‘rgba(217,119,6,0.1)’,   ‘#D97706’,  ‘\u26A0\uFE0F Perlu Perbaikan’],
+lengkap:           [‘rgba(27,77,62,0.1)’,    ‘#1B4D3E’,  ‘\u2705 Lengkap’],
+};
+const s = map[status] || map[‘belum_upload’];
+return `<span style="background:${s[0]};color:${s[1]};font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px">${s[2]}</span>`;
+}
+
+// Override getPaymentBadge agar lebih lengkap
+function getPaymentBadge(status) {
+const map = {
+belum_bayar:     [’#E74C3C’, ‘\uD83D\uDD34 Belum Bayar’],
+dp_menunggu:     [’#2563EB’, ‘\uD83D\uDD35 DP Menunggu Konfirmasi’],
+dp_dikonfirmasi: [’#27AE60’, ‘\uD83D\uDFE2 DP Dikonfirmasi’],
+dp_ditolak:      [’#E74C3C’, ‘\u274C DP Ditolak’],
+lunas_menunggu:  [’#2563EB’, ‘\uD83D\uDD35 Lunas Menunggu’],
+lunas:           [’#1B4D3E’, ‘\u2705 Lunas’],
+};
+const s = map[status] || map[‘belum_bayar’];
+return `<span style="font-size:10px;font-weight:700;color:${s[0]}">${s[1]}</span>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CSS TAMBAHAN — animasi slideUp
+// ─────────────────────────────────────────────────────────────
+const extraCSS = document.createElement(‘style’);
+extraCSS.textContent = `@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to   { transform: translateY(0);    opacity: 1; } }`;
+document.head.appendChild(extraCSS);
